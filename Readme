@@ -1,0 +1,146 @@
+This exaplain how to enable the hot spot to run after reboot
+
+our Setup Goals Recap
+- Device: OrangePi 4 LTS running Linux
+- Task: Stream camera data using MJPEG-streamer
+- Challenge: Trigger MJPEG-streamer remotely from Android or PC without a router or external Wi-Fi
+- Idea: Make OrangePi act as a Wi-Fi hotspot and host a service that listens for remote commands
+
+🛠️ Step-by-Step Solution
+=== Turn OrangePi into a Wi-Fi Access Point ===
+Use hostapd and dnsmasq to create a standalone Wi-Fi network:
+
+=== Install required packages ===
+
+sudo apt install hostapd dnsmasq
+
+=== Configure hostapd ===
+
+interface=wlan0
+driver=nl80211
+ssid=OrangePiCam
+hw_mode=g
+channel=6
+auth_algs=1
+wmm_enabled=0
+
+- Save this as /etc/hostapd/hostapd.conf 
+
+=== You tell hostapd to use that file ===
+- Open the file:
+/etc/default/hostapd
+- Find the line that starts with #DAEMON_CONF="" and change it to:
+DAEMON_CONF="/etc/hostapd/hostapd.conf"
+- This line “points to” your config file—meaning it tells the hostapd service where to look for its instructions.
+
+=== Restart the service ===
+
+sudo systemctl restart hostapd
+
+=== Install dnsmasq ===
+
+sudo apt update
+sudo apt install dnsmasq
+
+=== Create a Custom Config File ===
+
+- Instead of editing the default config (which is huge), create a clean one just for your hotspot:
+sudo nano /etc/dnsmasq.d/orangepi-hotspot.conf
+
+- Paste this into the file:
+interface=wlan0                # Use the Wi-Fi interface
+dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+address=/gateway/192.168.4.1   # Optional: resolve "gateway" to OrangePi
+
+
+- interface=wlan0: This tells dnsmasq to serve DHCP on your Wi-Fi interface.
+- dhcp-range: Defines the IP range for connected devices.
+- address=/gateway/192.168.4.1: Lets you access OrangePi via http://gateway (optional but handy).
+
+=== Disable the Default Config (Optional but Recommended) ===
+
+- The default config file is /etc/dnsmasq.conf. You can comment out everything in it or rename it:
+
+sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
+
+- This ensures dnsmasq only uses your custom config.
+
+=== Restart the Service ===
+
+sudo systemctl restart dnsmasq
+
+- You can check if it’s working with:
+journalctl -u dnsmasq
+
+=== Assign static IP to wlan0 ===
+sudo ip addr add 192.168.4.1/24 dev wlan0
+
+=== Enable IP forwarding and start services ===
+echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
+sudo systemctl start hostapd
+sudo systemctl start dnsmasq
+
+
+Now your OrangePi is a Wi-Fi hotspot. Android or PC can connect directly.
+
+=== Make the Hotspot Start on Boot ===
+To ensure the hotspot starts automatically after a reboot, enable the services:
+
+- Let’s say your script is located at:
+/home/orangepi/startup.sh
+
+- Make sure it’s executable:
+chmod +x /home/orangepi/startup.sh
+
+=== Create the Systemd Service File ===
+
+- Create a new service:
+sudo nano /etc/systemd/system/delayed-start.service
+
+
+- Paste this:
+[Unit]
+Description=Run startup script after 10 seconds
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c "sleep 10 && /home/orangepi/startup.sh"
+Restart=no
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
+
+- This tells systemd to wait 10 seconds, then run your script once after boot.
+
+=== Enable the Service ===
+
+- Activate it so it runs on every boot:
+sudo systemctl enable delayed-start.service
+
+
+- You can test it immediately with:
+sudo systemctl start delayed-start.service
+
+=== Edit the startup script to start hostapd and dnsmasq ===
+- Create the startup script:
+
+nano /home/orangepi/startup.sh
+
+- Paste this into the script:
+#!/bin/bash
+
+rfkill unblock wifi
+sudo systemctl stop hostapd
+sudo systemctl stop dnsmasq
+sudo ip addr flush dev wlan0
+sudo ip addr add 192.168.4.1/24 dev wlan0
+sudo systemctl start dnsmasq
+sudo systemctl start hostapd
+
+echo "rfkill unlock"
+
+- Make it executable:
+chmod +x /home/orangepi/startup.sh
