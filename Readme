@@ -144,3 +144,7 @@ echo "rfkill unlock"
 
 - Make it executable:
 chmod +x /home/orangepi/startup.sh
+
+- If you want to start the mjpeg streamer python script to start after reboot, you need
+- to add the next line in the end of the file "startup.sh"
+python3 /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
