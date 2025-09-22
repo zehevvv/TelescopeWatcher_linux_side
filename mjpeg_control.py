@@ -31,7 +31,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
         
         return None    
     
-    def start_stream(self, video_device):
+    def start_stream(self, video_device, port):
         if not video_device:
             self.send_response(500)
             self.send_header('Content-Type', 'text/plain')
@@ -49,7 +49,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             -co 20 \
             -sh 50 \
             -sa 0 \
-            " -o "output_http.so -p 8080 -w /usr/local/share/mjpg-streamer/www" """
+            " -o "output_http.so -p {port} -w /usr/local/share/mjpg-streamer/www" """
 
         try:
             subprocess.Popen(cmd, shell=True)
@@ -69,14 +69,14 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             
             # Find available video device
             video_device = self.get_camera_device('UC60')
-            self.start_stream(video_device)
+            self.start_stream(video_device, 8080)
 
         elif self.path == '/start_secondary_cam':
             print("Starting secondary MJPEG Streamer...")
             
             # Find available video device
             video_device = self.get_camera_device('Webcam')
-            self.start_stream(video_device)
+            self.start_stream(video_device, 8081)
                 
         elif self.path == '/ping':
             self.send_response(200)
