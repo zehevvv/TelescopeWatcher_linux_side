@@ -45,32 +45,32 @@ class MJPEGHandler(BaseHTTPRequestHandler):
         print(f"No {camera_type} camera found")
         return None
 
-    def start_stream(self, video_device, port):
-        if not video_device:
+    def start_stream(self):
+        if not self.video_device:
             self.send_response(500)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
             self.wfile.write(b"No suitable video device found")
             return
 
-        print(f"Using video device: {video_device}")
-        
-        cmd = f"""mjpg_streamer -i "input_uvc.so -d {video_device} \
-            -r 1280x720 \
-            -f 5 \
-            -q 90 \
-            -br 60 \
-            -co 20 \
-            -sh 50 \
-            -sa 0 \
-            " -o "output_http.so -p {port} -w /usr/local/share/mjpg-streamer/www" """
+        print(f"Using video device: {self.video_device}")
+
+        cmd = f"""mjpg_streamer -i "input_uvc.so -d {self.video_device} \
+            -r 1920x1080 \
+            -f 30 \
+            -q 95 \
+            -br 0 \
+            -co 51 \
+            -sh 80 \
+            -sa 64 \
+            " -o "output_http.so -p {self.video_port} -w /usr/local/share/mjpg-streamer/www" """
 
         try:
             subprocess.Popen(cmd, shell=True)
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
-            self.wfile.write(f"Stream started on {video_device}".encode())
+            self.wfile.write(f"Stream started on {self.video_device}".encode())
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'text/plain')
@@ -79,7 +79,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith('/start'):
-            self.start_stream(self.video_device, self.video_port)
+            self.start_stream()
                  
         elif self.path == '/ping':
             self.send_response(200)
@@ -88,12 +88,14 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"pong")
         elif self.path == '/stop':
             try:
-                # Kill all mjpg_streamer processes
-                subprocess.run(['pkill', '-f', 'mjpg_streamer'], check=False)
+                # Force kill all mjpg_streamer processes with multiple methods
+                subprocess.run(['pkill', '-9', '-f', 'mjpg_streamer'], check=False)
+                subprocess.run(['killall', '-9', 'mjpg_streamer'], check=False)
+                
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b"Stream stopped")
+                self.wfile.write(b"Stream force stopped")
             except Exception as e:
                 self.send_response(500)
                 self.send_header('Content-Type', 'text/plain')
