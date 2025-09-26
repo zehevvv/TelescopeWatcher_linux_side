@@ -46,13 +46,18 @@ class MJPEGHandler(BaseHTTPRequestHandler):
         return None
 
     def start_stream(self):
-        if not self.video_device:
+        # Re-detect video device each time we start (in case camera was reconnected)
+        current_device = self.get_camera_device_by_type(self.camera_type)
+        
+        if not current_device:
             self.send_response(500)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
             self.wfile.write(b"No suitable video device found")
             return
 
+        # Update the class variable with current device
+        self.video_device = current_device
         print(f"Using video device: {self.video_device}")
 
         cmd = f"""mjpg_streamer -i "input_uvc.so -d {self.video_device} \
