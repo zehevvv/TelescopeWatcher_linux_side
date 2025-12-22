@@ -65,6 +65,11 @@ sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
 
 - This ensures dnsmasq only uses your custom config.
 
+=== Disable systemd-resolved
+
+sudo systemctl stop systemd-resolved
+sudo systemctl disable systemd-resolved
+
 === Restart the Service ===
 
 sudo systemctl restart dnsmasq
