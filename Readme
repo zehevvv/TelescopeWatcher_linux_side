@@ -45,7 +45,6 @@ sudo systemctl restart hostapd
 
 === Install dnsmasq ===
 
-sudo apt update
 sudo apt install dnsmasq
 
 === Create a Custom Config File ===
