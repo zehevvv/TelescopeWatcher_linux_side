@@ -112,12 +112,12 @@ sudo systemctl start hostapd
 
 echo "rfkill unlock"
 
+python3 /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+
+- The last line is need only if you want to start the mjpeg streamer python script to start after reboot, you need
+
 - Make it executable:
 chmod +x /home/orangepi/startup.sh
-
-- If you want to start the mjpeg streamer python script to start after reboot, you need
-- to add the next line in the end of the file "startup.sh"
-python3 /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
 === Make the Hotspot Start on Boot ===
 To ensure the hotspot starts automatically after a reboot, enable the services:
@@ -156,7 +156,14 @@ WantedBy=multi-user.target
 - Activate it so it runs on every boot:
 sudo systemctl enable delayed-start.service
 
-
 - You can test it immediately with:
 sudo systemctl start delayed-start.service
+
+=== Add the script that run server of mjpeg stream ===
+
+- run next lines:
+sudo apt install git
+cd /home/orangepi/Desktop
+git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
+
 
