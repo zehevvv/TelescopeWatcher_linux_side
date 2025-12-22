@@ -32,8 +32,9 @@ wmm_enabled=0
 
 
 === You tell hostapd to use that file ===
-- Open the file:
-/etc/default/hostapd
+- Open the file /etc/default/hostapd:
+sudo nano /etc/default/hostapd
+
 - Find the line that starts with #DAEMON_CONF="" and change it to:
 DAEMON_CONF="/etc/hostapd/hostapd.conf"
 - This line “points to” your config file—meaning it tells the hostapd service where to look for its instructions.
