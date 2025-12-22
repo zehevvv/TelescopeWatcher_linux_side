@@ -12,6 +12,7 @@ Use hostapd and dnsmasq to create a standalone Wi-Fi network:
 
 === Install required packages ===
 
+sudo apt-get update
 sudo apt install hostapd dnsmasq
 
 === Configure hostapd ===
