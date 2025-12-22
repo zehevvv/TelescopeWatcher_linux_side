@@ -17,6 +17,11 @@ sudo apt install hostapd dnsmasq
 
 === Configure hostapd ===
 
+- Open config file
+sudo nano /etc/hostapd/hostapd.conf
+
+- Copy the next lines
+
 interface=wlan0
 driver=nl80211
 ssid=OrangePiCam
@@ -25,7 +30,6 @@ channel=6
 auth_algs=1
 wmm_enabled=0
 
-- Save this as /etc/hostapd/hostapd.conf 
 
 === You tell hostapd to use that file ===
 - Open the file:
