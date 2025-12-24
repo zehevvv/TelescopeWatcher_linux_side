@@ -4,6 +4,7 @@ import urllib.parse
 import os
 import glob
 import threading
+import serial
 
 # sudo pkill -f mjpeg_control.py
 
@@ -543,7 +544,8 @@ class WebcamHandler(MJPEGHandler):
     pass
 
 # Configure camera types
-UC60Handler.set_camera_config('UC60', '8080')
+# UC60Handler.set_camera_config('UC60', '8080')
+UC60Handler.set_camera_config('HD USB Camera', '8080')
 WebcamHandler.set_camera_config('Webcam', '8081')
 
 # Start UC60 server on port 5000
@@ -574,6 +576,100 @@ webcam_thread.start()
 print("Both servers are running...")
 print("UC60 camera: http://ip:5000")
 print("Webcam camera: http://ip:5001")
+
+# Serial Bridge Configuration
+serial_port = '/dev/ttyACM0'
+serial_baud = 115200
+serial_connection = None
+
+try:
+    serial_connection = serial.Serial(
+        port=serial_port,
+        baudrate=serial_baud,
+        dsrdtr=False,
+        rtscts=False,
+        timeout=1
+    )
+    # Explicitly disable DTR/RTS to prevent Arduino reset
+    serial_connection.dtr = False
+    serial_connection.rts = False
+    print(f"Serial connection opened on {serial_port}")
+except Exception as e:
+    print(f"Failed to open serial port {serial_port}: {e}")
+
+class SerialBridgeHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        global serial_connection
+        parsed_path = urllib.parse.urlparse(self.path)
+        query = urllib.parse.parse_qs(parsed_path.query)
+        
+        if parsed_path.path == '/write':
+            cmd = query.get('cmd', [None])[0]
+            if cmd:
+                if serial_connection and serial_connection.is_open:
+                    try:
+                        print(f"Writing to serial: {cmd}")
+                        serial_connection.write(f"{cmd}\n".encode())
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'text/plain')
+                        self.end_headers()
+                        self.wfile.write(b"OK")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header('Content-Type', 'text/plain')
+                        self.end_headers()
+                        self.wfile.write(f"Serial write error: {str(e)}".encode())
+                else:
+                    self.send_response(503)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b"Serial connection not open")
+            else:
+                self.send_response(400)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b"Missing 'cmd' parameter")
+                
+        elif parsed_path.path == '/read':
+            if serial_connection and serial_connection.is_open:
+                try:
+                    if serial_connection.in_waiting > 0:
+                        data = serial_connection.read(serial_connection.in_waiting).decode('utf-8', errors='ignore')
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'text/plain')
+                        self.end_headers()
+                        self.wfile.write(data.encode())
+                    else:
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'text/plain')
+                        self.end_headers()
+                        self.wfile.write(b"") # No data
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(f"Serial read error: {str(e)}".encode())
+            else:
+                self.send_response(503)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b"Serial connection not open")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+# Start Serial Bridge server on port 5002
+serial_server = HTTPServer(('0.0.0.0', 5002), SerialBridgeHandler)
+print("Serial Bridge Server starting on port 5002...")
+
+def run_serial_server():
+    serial_server.serve_forever()
+
+serial_thread = threading.Thread(target=run_serial_server)
+serial_thread.daemon = True
+serial_thread.start()
+
+print("Serial bridge: http://ip:5002")
 
 # Keep main thread alive
 try:
