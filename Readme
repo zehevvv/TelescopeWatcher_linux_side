@@ -156,3 +156,14 @@ cd /home/orangepi/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
 chmod +x /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
+=== Instal MJPEG sreamer ===
+sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
+git clone https://github.com/jacksonliam/mjpg-streamer.git
+cd mjpg-streamer/mjpg-streamer-experimental
+mkdir build && cd build
+cmake ..
+make
+sudo make install
+
+- Test if install
+mjpg_streamer -h
