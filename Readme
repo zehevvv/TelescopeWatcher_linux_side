@@ -43,10 +43,6 @@ DAEMON_CONF="/etc/hostapd/hostapd.conf"
 
 sudo systemctl restart hostapd
 
-=== Install dnsmasq ===
-
-sudo apt install dnsmasq
-
 === Create a Custom Config File ===
 
 - Instead of editing the default config (which is huge), create a clean one just for your hotspot:
@@ -119,14 +115,6 @@ python3 /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py
 - Make it executable:
 chmod +x /home/orangepi/startup.sh
 
-=== Make the Hotspot Start on Boot ===
-To ensure the hotspot starts automatically after a reboot, enable the services:
-
-- Let’s say your script is located at:
-/home/orangepi/startup.sh
-
-- Make sure it’s executable:
-chmod +x /home/orangepi/startup.sh
 
 === Create the Systemd Service File ===
 
@@ -163,7 +151,19 @@ sudo systemctl start delayed-start.service
 
 - run next lines:
 sudo apt install git
+mkdir /home/orangepi/Desktop
 cd /home/orangepi/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
+chmod +x /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
+=== Instal MJPEG sreamer ===
+sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
+git clone https://github.com/jacksonliam/mjpg-streamer.git
+cd mjpg-streamer/mjpg-streamer-experimental
+mkdir build && cd build
+cmake ..
+make
+sudo make install
 
+- Test if install
+mjpg_streamer -h
