@@ -5,6 +5,7 @@ import os
 import glob
 import threading
 import serial
+import time
 
 # sudo pkill -f mjpeg_control.py
 
@@ -146,7 +147,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             try:
                 subprocess.run(['v4l2-ctl', '-d', self.video_device, '-c', f'contrast={contrast}'], check=True)
                 self.send_response(200)
-                self.send_header('Content-Type', 'text/plain')  
+                self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(f"Contrast set to {contrast}".encode())
             except subprocess.CalledProcessError:
@@ -581,6 +582,8 @@ print("Webcam camera: http://ip:5001")
 serial_port = '/dev/ttyACM0'
 serial_baud = 115200
 serial_connection = None
+serial_buffer = bytearray()
+serial_buffer_lock = threading.Lock()
 
 try:
     serial_connection = serial.Serial(
@@ -597,9 +600,40 @@ try:
 except Exception as e:
     print(f"Failed to open serial port {serial_port}: {e}")
 
+def serial_read_worker():
+    """Background thread to continuously read from serial port to buffer"""
+    global serial_connection, serial_buffer, serial_buffer_lock
+    while True:
+        if serial_connection and serial_connection.is_open:
+            try:
+                if serial_connection.in_waiting > 0:
+                    data = serial_connection.read(serial_connection.in_waiting)
+                    
+                    # Decode bytes to string to interpret control characters like \n
+                    print(f"////// Reading from serial:\n {data.decode('utf-8', errors='replace')} \\\\\\\\\\\\")
+                    
+                    if data:
+                        with serial_buffer_lock:
+                            serial_buffer.extend(data)
+            except Exception as e:
+                print(f"Serial background read error: {e}")
+                time.sleep(1)
+        time.sleep(0.01)
+
+# Start the serial reader thread
+serial_reader_thread = threading.Thread(target=serial_read_worker)
+serial_reader_thread.daemon = True
+serial_reader_thread.start()
+
 class SerialBridgeHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Only suppress logging for /read requests
+        if self.path.startswith('/read'):
+            return
+        BaseHTTPRequestHandler.log_message(self, format, *args)
+
     def do_GET(self):
-        global serial_connection
+        global serial_connection, serial_buffer, serial_buffer_lock
         parsed_path = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(parsed_path.query)
         
@@ -631,29 +665,26 @@ class SerialBridgeHandler(BaseHTTPRequestHandler):
                 self.wfile.write(b"Missing 'cmd' parameter")
                 
         elif parsed_path.path == '/read':
-            if serial_connection and serial_connection.is_open:
-                try:
-                    if serial_connection.in_waiting > 0:
-                        data = serial_connection.read(serial_connection.in_waiting).decode('utf-8', errors='ignore')
-                        self.send_response(200)
-                        self.send_header('Content-Type', 'text/plain')
-                        self.end_headers()
-                        self.wfile.write(data.encode())
-                    else:
-                        self.send_response(200)
-                        self.send_header('Content-Type', 'text/plain')
-                        self.end_headers()
-                        self.wfile.write(b"") # No data
-                except Exception as e:
-                    self.send_response(500)
-                    self.send_header('Content-Type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write(f"Serial read error: {str(e)}".encode())
-            else:
-                self.send_response(503)
+            try:
+                response_data = ""
+                with serial_buffer_lock:
+                    if len(serial_buffer) > 0:
+                        # Decode bytes to string (handling errors)
+                        response_data = serial_buffer.decode('utf-8', errors='ignore')
+                        # Clear the buffer
+                        print(f"##### Sending to HTTP client:\n {response_data} #####")
+                        serial_buffer.clear()
+                        
+                
+                self.send_response(200)
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b"Serial connection not open")
+                self.wfile.write(response_data.encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(f"Read error: {str(e)}".encode())
         else:
             self.send_response(404)
             self.end_headers()
