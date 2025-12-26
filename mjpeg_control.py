@@ -672,7 +672,7 @@ class SerialBridgeHandler(BaseHTTPRequestHandler):
                         # Decode bytes to string (handling errors)
                         response_data = serial_buffer.decode('utf-8', errors='ignore')
                         # Clear the buffer
-                        print(f"##### Sending to HTTP client:\n {response_data} #####")
+                        # print(f"##### Sending to HTTP client:\n {response_data} #####")
                         serial_buffer.clear()
                         
                 
@@ -685,6 +685,32 @@ class SerialBridgeHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(f"Read error: {str(e)}".encode())
+
+        elif parsed_path.path == '/stream':
+            # Continuous stream of serial data
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'keep-alive')
+            self.end_headers()
+
+            try:
+                while True:
+                    data_to_send = b""
+                    with serial_buffer_lock:
+                        if len(serial_buffer) > 0:
+                            data_to_send = bytes(serial_buffer)
+                            serial_buffer.clear()
+                    
+                    if len(data_to_send) > 0:
+                        # Write raw bytes directly to the stream
+                        self.wfile.write(data_to_send)
+                        self.wfile.flush()
+                    
+                    time.sleep(0.01)
+            except Exception as e:
+                print(f"Stream client disconnected: {e}")
+
         else:
             self.send_response(404)
             self.end_headers()
