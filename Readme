@@ -1,13 +1,13 @@
-This exaplain how to enable the hot spot to run after reboot
+This explains how to enable the hotspot to run after reboot
 
-our Setup Goals Recap
-- Device: OrangePi 4 LTS running Linux
+Our Setup Goals Recap
+- Device: Raspberry Pi 5 running Linux
 - Task: Stream camera data using MJPEG-streamer
 - Challenge: Trigger MJPEG-streamer remotely from Android or PC without a router or external Wi-Fi
-- Idea: Make OrangePi act as a Wi-Fi hotspot and host a service that listens for remote commands
+- Idea: Make Raspberry Pi act as a Wi-Fi hotspot and host a service that listens for remote commands
 
 🛠️ Step-by-Step Solution
-=== Turn OrangePi into a Wi-Fi Access Point ===
+=== Turn Raspberry Pi into a Wi-Fi Access Point ===
 Use hostapd and dnsmasq to create a standalone Wi-Fi network:
 
 === Install required packages ===
@@ -24,7 +24,7 @@ sudo nano /etc/hostapd/hostapd.conf
 
 interface=wlan0
 driver=nl80211
-ssid=OrangePiCam
+ssid=RaspberryPiCam
 hw_mode=g
 channel=6
 auth_algs=1
@@ -37,7 +37,7 @@ sudo nano /etc/default/hostapd
 
 - Find the line that starts with #DAEMON_CONF="" and change it to:
 DAEMON_CONF="/etc/hostapd/hostapd.conf"
-- This line “points to” your config file—meaning it tells the hostapd service where to look for its instructions.
+- This line "points to" your config file—meaning it tells the hostapd service where to look for its instructions.
 
 === Restart the service ===
 
@@ -46,17 +46,17 @@ sudo systemctl restart hostapd
 === Create a Custom Config File ===
 
 - Instead of editing the default config (which is huge), create a clean one just for your hotspot:
-sudo nano /etc/dnsmasq.d/orangepi-hotspot.conf
+sudo nano /etc/dnsmasq.d/raspi-hotspot.conf
 
 - Paste this into the file:
 interface=wlan0                # Use the Wi-Fi interface
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-address=/gateway/192.168.4.1   # Optional: resolve "gateway" to OrangePi
+address=/gateway/192.168.4.1   # Optional: resolve "gateway" to Raspberry Pi
 
 
 - interface=wlan0: This tells dnsmasq to serve DHCP on your Wi-Fi interface.
 - dhcp-range: Defines the IP range for connected devices.
-- address=/gateway/192.168.4.1: Lets you access OrangePi via http://gateway (optional but handy).
+- address=/gateway/192.168.4.1: Lets you access Raspberry Pi via http://gateway (optional but handy).
 
 === Disable the Default Config (Optional but Recommended) ===
 
@@ -75,7 +75,7 @@ sudo systemctl disable systemd-resolved
 
 sudo systemctl restart dnsmasq
 
-- You can check if it’s working with:
+- You can check if it's working with:
 journalctl -u dnsmasq
 
 === Assign static IP to wlan0 ===
@@ -87,13 +87,13 @@ sudo systemctl start hostapd
 sudo systemctl start dnsmasq
 
 
-Now your OrangePi is a Wi-Fi hotspot. Android or PC can connect directly.
+Now your Raspberry Pi is a Wi-Fi hotspot. Android or PC can connect directly.
 
 
 === Create or edit the startup script to start hostapd and dnsmasq ===
 - Create the startup script:
 
-nano /home/orangepi/startup.sh
+nano /home/pi/startup.sh
 
 - Paste this into the script:
 #!/bin/bash
@@ -108,12 +108,12 @@ sudo systemctl start hostapd
 
 echo "rfkill unlock"
 
-python3 /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+python3 /home/pi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
-- The last line is need only if you want to start the mjpeg streamer python script to start after reboot, you need
+- The last line is needed only if you want to start the mjpeg streamer python script to start after reboot
 
 - Make it executable:
-chmod +x /home/orangepi/startup.sh
+chmod +x /home/pi/startup.sh
 
 
 === Create the Systemd Service File ===
@@ -129,7 +129,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "sleep 10 && /home/orangepi/startup.sh"
+ExecStart=/bin/bash -c "sleep 10 && /home/pi/startup.sh"
 Restart=no
 User=root
 
@@ -147,16 +147,16 @@ sudo systemctl enable delayed-start.service
 - You can test it immediately with:
 sudo systemctl start delayed-start.service
 
-=== Add the script that run server of mjpeg stream ===
+=== Add the script that runs server of mjpeg stream ===
 
-- run next lines:
+- Run next lines:
 sudo apt install git
-mkdir /home/orangepi/Desktop
-cd /home/orangepi/Desktop
+mkdir /home/pi/Desktop
+cd /home/pi/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
-chmod +x /home/orangepi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+chmod +x /home/pi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
-=== Instal MJPEG sreamer ===
+=== Install MJPEG streamer ===
 sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
 git clone https://github.com/jacksonliam/mjpg-streamer.git
 cd mjpg-streamer/mjpg-streamer-experimental
@@ -165,5 +165,5 @@ cmake ..
 make
 sudo make install
 
-- Test if install
+- Test if installed
 mjpg_streamer -h
