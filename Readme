@@ -164,6 +164,9 @@ sudo systemctl start delayed-start.service
 
 === Add the script that runs server of mjpeg stream ===
 
+- instal packages for python server
+sudo apt install python3-serial
+
 - Run next lines, remmber to replace <user> by the user name:
 sudo apt install git -y
 mkdir /home/<user>/Desktop
