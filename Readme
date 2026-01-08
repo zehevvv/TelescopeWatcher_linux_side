@@ -128,7 +128,7 @@ python3 /home/<user>/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py
 - The last line is needed only if you want to start the mjpeg streamer python script to start after reboot
 
 - Make it executable, replace <user> by the user name:
-chmod +x /home/pi/startup.sh
+chmod +x /home/<user>/startup.sh
 
 
 === Create the Systemd Service File ===
@@ -137,14 +137,14 @@ chmod +x /home/pi/startup.sh
 sudo nano /etc/systemd/system/delayed-start.service
 
 
-- Paste this:
+- Paste this: (make sure to replace <user> by the user name)
 [Unit]
 Description=Run startup script after 10 seconds
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "sleep 10 && /home/pi/startup.sh"
+ExecStart=/bin/bash -c "sleep 10 && /home/<user>/startup.sh"
 Restart=no
 User=root
 
