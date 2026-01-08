@@ -6,6 +6,19 @@ Our Setup Goals Recap
 - Challenge: Trigger MJPEG-streamer remotely from Android or PC without a router or external Wi-Fi
 - Idea: Make Raspberry Pi act as a Wi-Fi hotspot and host a service that listens for remote commands
 
+=== Stop to connect to WIFI ===
+sudo nmcli device disconnect wlan0
+
+- edit the config file of wifi so it not connect automaticly
+sudo nano /etc/NetworkManager/NetworkManager.conf
+
+- Add this in the end
+[keyfile]
+unmanaged-devices=interface-name:wlan0
+
+- Restart network
+sudo systemctl restart NetworkManager
+
 🛠️ Step-by-Step Solution
 === Turn Raspberry Pi into a Wi-Fi Access Point ===
 Use hostapd and dnsmasq to create a standalone Wi-Fi network:
