@@ -545,16 +545,18 @@ class WebcamHandler(MJPEGHandler):
     pass
 
 # Configure camera types
-# UC60Handler.set_camera_config('UC60', '8080')
-UC60Handler.set_camera_config('HD USB Camera', '8080')
-WebcamHandler.set_camera_config('Webcam', '8081')
+UC60Handler.set_camera_config('UC60', '8081')
+# UC60Handler.set_camera_config('HD USB Camera', '8080')
+# WebcamHandler.set_camera_config('Webcam', '8081')
+WebcamHandler.set_camera_config('HD USB Camera', '8081')
+
 
 # Start UC60 server on port 5000
-uc60_server = HTTPServer(('0.0.0.0', 5000), UC60Handler)
+uc60_server = HTTPServer(('0.0.0.0', 5001), UC60Handler)
 print("UC60 MJPEG Control Server starting on port 5000...")
 
 # Start Webcam server on port 5001
-webcam_server = HTTPServer(('0.0.0.0', 5001), WebcamHandler)
+webcam_server = HTTPServer(('0.0.0.0', 5000), WebcamHandler)
 print("Webcam MJPEG Control Server starting on port 5001...")
 
 # Run both servers (you'll need threading for this to work properly)
