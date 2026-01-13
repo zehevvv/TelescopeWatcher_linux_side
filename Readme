@@ -106,7 +106,8 @@ Now your Raspberry Pi is a Wi-Fi hotspot. Android or PC can connect directly.
 === Create or edit the startup script to start hostapd and dnsmasq ===
 - Create the startup script:
 
-nano /home/pi/startup.sh
+- Create SH startup script, replace <user> by the user name
+nano /home/<user>/startup.sh
 
 - Paste this into the script:
 #!/bin/bash
@@ -121,12 +122,13 @@ sudo systemctl start hostapd
 
 echo "rfkill unlock"
 
-python3 /home/pi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+- in the end of the file add this line and replace <user> by the user name
+python3 /home/<user>/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
 - The last line is needed only if you want to start the mjpeg streamer python script to start after reboot
 
-- Make it executable:
-chmod +x /home/pi/startup.sh
+- Make it executable, replace <user> by the user name:
+chmod +x /home/<user>/startup.sh
 
 
 === Create the Systemd Service File ===
@@ -135,14 +137,14 @@ chmod +x /home/pi/startup.sh
 sudo nano /etc/systemd/system/delayed-start.service
 
 
-- Paste this:
+- Paste this: (make sure to replace <user> by the user name)
 [Unit]
 Description=Run startup script after 10 seconds
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "sleep 10 && /home/pi/startup.sh"
+ExecStart=/bin/bash -c "sleep 10 && /home/<user>/startup.sh"
 Restart=no
 User=root
 
@@ -162,12 +164,15 @@ sudo systemctl start delayed-start.service
 
 === Add the script that runs server of mjpeg stream ===
 
-- Run next lines:
-sudo apt install git
-mkdir /home/pi/Desktop
-cd /home/pi/Desktop
+- instal packages for python server
+sudo apt install python3-serial
+
+- Run next lines, remmber to replace <user> by the user name:
+sudo apt install git -y
+mkdir /home/<user>/Desktop
+cd /home/<user>/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
-chmod +x /home/pi/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+chmod +x /home/israelf/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
 
 === Install MJPEG streamer ===
 sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
