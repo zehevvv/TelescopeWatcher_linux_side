@@ -548,7 +548,7 @@ class WebcamHandler(MJPEGHandler):
 UC60Handler.set_camera_config('UC60', '8081')
 # UC60Handler.set_camera_config('HD USB Camera', '8080')
 # WebcamHandler.set_camera_config('Webcam', '8081')
-WebcamHandler.set_camera_config('HD USB Camera', '8081')
+WebcamHandler.set_camera_config('HD USB Camera', '8080')
 
 
 # Start UC60 server on port 5000
