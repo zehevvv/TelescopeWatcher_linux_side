@@ -1,2 +1,3 @@
-__pycache__/mjpeg_control.cpython-38.pyc
+*.pyc
 mjpg-streamer/*
+Classes/__pycache__/MotorsControl.cpython-313.pyc

@@ -108,6 +108,10 @@ class MJPEGHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(f"Error stopping stream: {str(e)}".encode())
+                
+        elif self.path == '/restart':
+            subprocess.run(["sudo", "reboot"], check=True)
+   
         
         # Camera Controls - using self.video_device
         elif self.path.startswith('/set_brightness'):
