@@ -1,9 +1,13 @@
+import threading
 from Classes.Camera import Camera
 from Classes.MotorsServer import MotorsServer
+from Classes.CameraControl import CameraHandler
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 cam = None
 motor_server = None
+hd_cam_server = None
 
 def test_camera():
     global cam
@@ -29,6 +33,21 @@ def test_camera():
         # print("Test complete.")
     else:
         print(f"Camera '{camera_name}' not found. Please ensure the camera is connected and the name matches.")
+        
+def test_camera_server():
+    global hd_cam_server
+    print("Testing CameraHandler class...")
+    
+    class HD_CAM_Handler(CameraHandler):
+        pass
+            
+    HD_CAM_Handler.set_camera_config(camera_model= "HD USB Camera", camera_type='H264', video_port=8080)
+    hd_cam_server = HTTPServer(('0.0.0.0', 5001), HD_CAM_Handler)
+    
+    hd_cam_thread = threading.Thread(target=hd_cam_server.serve_forever)
+    hd_cam_thread.daemon = True
+    hd_cam_thread.start()
+    
 
 def test_motors_server():
     global motor_server
@@ -44,7 +63,8 @@ def test_motors_server():
     # motor_server.stop_server()
 
 if __name__ == "__main__":
-    test_camera()
+    # test_camera()
+    test_camera_server()
     test_motors_server()
     
     while True:        
