@@ -64,7 +64,7 @@ def test_motors_server():
     global motor_server
     print("Testing MotorsServer class...")
     
-    motor_server = MotorsServer('0.0.0.0', 5003)
+    motor_server = MotorsServer('0.0.0.0', 5002)
     motor_server.start_server()
     
     # print("MotorsServer started. Running for 5 seconds...")    

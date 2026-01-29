@@ -34,12 +34,12 @@ class MotorControl:
                     if self.__serial_connection.in_waiting > 0:
                         data = self.__serial_connection.read(self.__serial_connection.in_waiting)
                     
-                    # Decode bytes to string to interpret control characters like \n
-                    print(f"////// Reading from serial:\n {data.decode('utf-8', errors='replace')} \\\\\\\\\\\\")
-                    
-                    if data:
-                        with self.__serial_buffer_lock:
-                            self.__serial_buffer.extend(data)
+                        # Decode bytes to string to interpret control characters like \n
+                        print(f"////// Reading from serial:\n {data.decode('utf-8', errors='replace')} \\\\\\\\\\\\")
+                        
+                        if data:
+                            with self.__serial_buffer_lock:
+                                self.__serial_buffer.extend(data)
                 except Exception as e:
                     print(f"Serial background read error: {e}")
                     time.sleep(1)
