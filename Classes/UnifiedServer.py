@@ -1,7 +1,17 @@
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.parse
-from Classes.MotorsControl import MotorControl
+import sys
+import os
+
+# Robust import for MotorControl
+try:
+    from Classes.MotorsControl import MotorControl
+except (ImportError, ModuleNotFoundError):
+    # Fallback if run directly or path issues
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from Classes.MotorsControl import MotorControl
+
 import subprocess
 import os
 import glob
@@ -180,19 +190,43 @@ class TelescopeServer:
 
     def start(self):
         print("Starting Telescope Unified Server...")
+        self._ensure_mediamtx_running()
+        
         self.server = HTTPServer((self.host, self.port), UnifiedHandler)
         
         # Initialize components
         self.server.motor_control = MotorControl()
         self.server.motor_control.start()
         
-        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5001) # Video Port unused for H264 rtsp
-        self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5002)
+        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5005) # Video Port unused for H264 rtsp
+        self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5006)
         
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
         self.thread.start()
         print(f"Server running on {self.host}:{self.port}")
+
+    def _ensure_mediamtx_running(self):
+        try:
+            # Check if running
+            result = subprocess.run(['pgrep', '-f', 'mediamtx'], capture_output=True)
+            if result.returncode != 0:
+                print("MediaMTX not running. Starting it...")
+                # Assuming mediamtx is in the current working directory or path
+                # Try to find it in current directory first
+                cwd = os.getcwd()
+                mediamtx_path = os.path.join(cwd, 'mediamtx')
+                
+                if os.path.exists(mediamtx_path):
+                     subprocess.Popen([mediamtx_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                     print("MediaMTX started.")
+                     time.sleep(1) # Give it a moment to bind ports
+                else:
+                    print(f"Warning: mediamtx executable not found at {mediamtx_path}. H264 streaming might fail.")
+            else:
+                print("MediaMTX is already running.")
+        except Exception as e:
+            print(f"Error checking/starting MediaMTX: {e}")
 
     def stop(self):
         if self.server:
