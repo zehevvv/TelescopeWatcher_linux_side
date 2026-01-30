@@ -198,8 +198,8 @@ class TelescopeServer:
         self.server.motor_control = MotorControl()
         self.server.motor_control.start()
         
-        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5005) # Video Port unused for H264 rtsp
-        self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5006)
+        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5001) # Video Port unused for H264 rtsp
+        self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5002)
         
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
