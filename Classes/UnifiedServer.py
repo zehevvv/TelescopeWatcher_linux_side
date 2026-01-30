@@ -18,10 +18,11 @@ import glob
 import time
 
 class CameraDevice:
-    def __init__(self, camera_model, camera_type, video_port):
+    def __init__(self, camera_model, camera_type, video_port, rtsp_port=8554):
         self.camera_model = camera_model
         self.camera_type = camera_type
         self.video_port = video_port
+        self.rtsp_port = rtsp_port
         self.video_device = None
         
     def get_camera_device_by_type(self):
@@ -68,7 +69,7 @@ class CameraDevice:
                 " -o "output_http.so -p {self.video_port} -w /usr/local/share/mjpg-streamer/www" """
         elif self.camera_type == "H264":
             cmd = f"""ffmpeg -f v4l2 -input_format h264 -video_size 1920x1080 -framerate 15 \
-            -i {self.video_device} -c:v copy -f rtsp rtsp://localhost:8554/cam"""
+            -i {self.video_device} -c:v copy -f rtsp rtsp://localhost:{self.rtsp_port}/cam"""
         else:
             return 500, b"Unsupported camera type"
         
@@ -198,7 +199,7 @@ class TelescopeServer:
         self.server.motor_control = MotorControl()
         self.server.motor_control.start()
         
-        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5001) # Video Port unused for H264 rtsp
+        self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5001, rtsp_port=8554)
         self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5002)
         
         self.thread = threading.Thread(target=self.server.serve_forever)
