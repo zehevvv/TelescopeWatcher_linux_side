@@ -123,7 +123,7 @@ sudo systemctl start hostapd
 echo "rfkill unlock"
 
 - in the end of the file add this line and replace <user> by the user name
-python3 /home/<user>/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+python3 /home/<user>/Desktop/TelescopeWatcher_linux_side/RunServer.py 
 
 - The last line is needed only if you want to start the mjpeg streamer python script to start after reboot
 

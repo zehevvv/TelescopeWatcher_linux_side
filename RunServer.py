@@ -1,6 +1,9 @@
 from Classes.UnifiedServer import TelescopeServer
 import time
 
+
+# sudo fuser -k 5000/tcp; fuser -k 5001/tcp; fuser -k 5002/tcp; fuser -k 5003/tcp; 
+
 def main():
     server = TelescopeServer(port=5000)
     server.start()
