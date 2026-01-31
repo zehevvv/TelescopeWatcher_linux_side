@@ -144,7 +144,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "sleep 10 && /home/<user>/startup.sh"
+ExecStart=/bin/bash /home/<user>/Desktop/TelescopeWatcher_linux_side/Others/startup.sh
 Restart=no
 User=root
 StandardOutput=journal
@@ -174,7 +174,7 @@ sudo apt install git -y
 mkdir /home/<user>/Desktop
 cd /home/<user>/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
-chmod +x /home/israelf/Desktop/TelescopeWatcher_linux_side/RunServer.py 
+chmod +x /home/<user>/Desktop/TelescopeWatcher_linux_side/RunServer.py 
 
 === Install MJPEG streamer ===
 sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
@@ -187,3 +187,14 @@ sudo make install
 
 - Test if installed
 mjpg_streamer -h
+
+ === Install mediamtx ===
+ - The server of the h264 video stream
+ - remmber to replace <user> by the user name:
+cd /home/<user>/Desktop/TelescopeWatcher_linux_side/Others/
+mkdir mediamtx  
+cd mediamtx  
+wget https://github.com/bluenviron/mediamtx/releases/download/v1.15.6/mediamtx_v1.15.6_linux_arm64.tar.gz
+tar -xzf *.tar.gz
+sudo chmod +x mediamtx
+
