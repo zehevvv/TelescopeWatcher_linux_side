@@ -86,8 +86,17 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         elif subpath.startswith('/stop'):
             code, msg = camera.stop_stream()
             self.respond(code, msg)
-        # Add other controls mapping here... 
-        # (Simplified for brevity, can verify others if needed)
+        elif subpath.startswith('/controls'):
+            code, msg = camera.get_controls()
+            self.respond(code, msg)
+        elif subpath.startswith('/set_control'):
+            name = query.get('name', [None])[0]
+            value = query.get('value', [None])[0]
+            if name and value:
+                code, msg = camera.set_control(name, value)
+                self.respond(code, msg)
+            else:
+                self.respond(400, b"Missing 'name' or 'value' parameter")
         else:
             self.respond(404, b"Camera endpoint not found")
 
