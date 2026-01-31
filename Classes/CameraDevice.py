@@ -1,0 +1,92 @@
+import subprocess
+import glob
+import threading
+import time
+import os
+import signal
+
+class CameraDevice:
+    def __init__(self, camera_model, camera_type, video_port, rtsp_port=8554):
+        self.camera_model = camera_model
+        self.camera_type = camera_type
+        self.video_port = video_port
+        self.rtsp_port = rtsp_port
+        self.video_device = None
+        
+    def get_camera_device_by_type(self):
+        """Find camera device by model"""
+        try:
+            video_devices = glob.glob('/dev/video*')
+            for device in sorted(video_devices):
+                try:
+                    info_result = subprocess.run(['v4l2-ctl', '-d', device, '--info'], 
+                                            capture_output=True, text=True, check=False)
+                    
+                    if info_result.returncode == 0 and self.camera_model in info_result.stdout:
+                        format_result = subprocess.run(['v4l2-ctl', '-d', device, '--list-formats'], 
+                                                    capture_output=True, text=True, check=False)
+                        
+                        if format_result.returncode == 0 and self.camera_type in format_result.stdout:
+                            print(f"Found {self.camera_model} camera at {device}")
+                            return device
+                except:
+                    continue
+        except:
+            pass
+        print(f"No {self.camera_model} camera found")
+        return None
+
+    def start_stream(self):
+        current_device = self.get_camera_device_by_type()
+        
+        if not current_device:
+            return 500, b"No suitable video device found"
+
+        self.video_device = current_device
+        print(f"Using video device: {self.video_device}")
+        
+        if self.camera_type == "MJPG":
+            cmd = f"""mjpg_streamer -i "input_uvc.so -d {self.video_device} \
+                -r 1920x1080 \
+                -f 30 \
+                -q 95 \
+                -br 0 \
+                -co 51 \
+                -sh 80 \
+                -sa 64 \
+                " -o "output_http.so -p {self.video_port} -w /usr/local/share/mjpg-streamer/www" """
+        elif self.camera_type == "H264":
+            cmd = f"""ffmpeg -f v4l2 -input_format h264 -video_size 1920x1080 -framerate 15 \
+            -i {self.video_device} -c:v copy -f rtsp rtsp://localhost:{self.rtsp_port}/cam"""
+        else:
+            return 500, b"Unsupported camera type"
+        
+        try:
+            subprocess.Popen(cmd, shell=True)
+            return 200, f"Stream started on {self.video_device}".encode()
+        except Exception as e:
+            return 500, f"Failed to start stream: {str(e)}".encode()
+
+    def stop_stream(self):
+        try:
+             # Stop specific to camera type if needed, or generic kill
+            if self.camera_type == "MJPG":
+                subprocess.run(['pkill', '-f', 'mjpg_streamer'], check=False)
+            elif self.camera_type == "H264":
+                subprocess.run(['pkill', '-f', 'ffmpeg'], check=False)
+            return 200, b"Stream stopped"
+        except Exception as e:
+            return 500, f"Error stopping stream: {str(e)}".encode()
+
+    def set_control(self, control_name, value):
+        if not self.video_device:
+             # Try to find it if not already found (e.g. if set_control called before start)
+             self.video_device = self.get_camera_device_by_type()
+             if not self.video_device:
+                return 500, b"No video device found"
+
+        try:
+            subprocess.run(['v4l2-ctl', '-d', self.video_device, '-c', f'{control_name}={value}'], check=True)
+            return 200, f"{control_name} set to {value}".encode()
+        except subprocess.CalledProcessError:
+            return 500, f"Failed to set {control_name}".encode()
