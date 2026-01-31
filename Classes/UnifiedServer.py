@@ -213,19 +213,37 @@ class TelescopeServer:
             result = subprocess.run(['pgrep', '-f', 'mediamtx'], capture_output=True)
             if result.returncode != 0:
                 print("MediaMTX not running. Starting it...")
-                # Assuming mediamtx is in the current working directory or path
                 # Try to find it in current directory first
                 cwd = os.getcwd()
                 mediamtx_path = os.path.join(cwd, 'mediamtx')
                 
+                print(f"Looking for mediamtx at: {mediamtx_path}")
+                
                 if os.path.exists(mediamtx_path):
-                     subprocess.Popen([mediamtx_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                     print("MediaMTX started.")
-                     time.sleep(1) # Give it a moment to bind ports
+                     print(f"Found mediamtx, launching...")
+                     subprocess.Popen([mediamtx_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=cwd)
+                     print("MediaMTX process started. Waiting for it to bind to port 8554...")
+                     
+                     # Wait up to 10 seconds for port 8554 to become available
+                     for i in range(20):
+                         time.sleep(0.5)
+                         port_check = subprocess.run(['ss', '-tuln'], capture_output=True, text=True)
+                         if ':8554' in port_check.stdout:
+                             print(f"MediaMTX is ready on port 8554 (took {(i+1)*0.5} seconds).")
+                             return
+                         print(f"Waiting for port 8554... attempt {i+1}/20")
+                     
+                     print("Warning: MediaMTX started but port 8554 not detected after 10 seconds.")
                 else:
                     print(f"Warning: mediamtx executable not found at {mediamtx_path}. H264 streaming might fail.")
             else:
                 print("MediaMTX is already running.")
+                # Double-check the port is actually listening
+                port_check = subprocess.run(['ss', '-tuln'], capture_output=True, text=True)
+                if ':8554' in port_check.stdout:
+                    print("Verified: MediaMTX is listening on port 8554.")
+                else:
+                    print("Warning: MediaMTX process found but port 8554 is not listening!")
         except Exception as e:
             print(f"Error checking/starting MediaMTX: {e}")
 

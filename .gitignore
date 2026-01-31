@@ -4,3 +4,4 @@ Classes/__pycache__/MotorsControl.cpython-313.pyc
 mediamtx
 mediamtx.log
 mediamtx.yml
+*.log

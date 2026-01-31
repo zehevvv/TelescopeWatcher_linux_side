@@ -147,6 +147,8 @@ Type=simple
 ExecStart=/bin/bash -c "sleep 10 && /home/<user>/startup.sh"
 Restart=no
 User=root
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -172,7 +174,7 @@ sudo apt install git -y
 mkdir /home/<user>/Desktop
 cd /home/<user>/Desktop
 git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
-chmod +x /home/israelf/Desktop/TelescopeWatcher_linux_side/mjpeg_control.py 
+chmod +x /home/israelf/Desktop/TelescopeWatcher_linux_side/RunServer.py 
 
 === Install MJPEG streamer ===
 sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
