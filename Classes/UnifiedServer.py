@@ -131,13 +131,15 @@ class TelescopeServer:
                 print("MediaMTX not running. Starting it...")
                 # Try to find it in current directory first
                 cwd = os.getcwd()
-                mediamtx_path = os.path.join(cwd, 'mediamtx')
+                mediamtx_path = os.path.join(cwd, 'Others/mediamtx/mediamtx')
                 
                 print(f"Looking for mediamtx at: {mediamtx_path}")
                 
                 if os.path.exists(mediamtx_path):
                      print(f"Found mediamtx, launching...")
-                     subprocess.Popen([mediamtx_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=cwd)
+                     # Use the mediamtx directory as the working directory so it finds mediamtx.yml
+                     mediamtx_dir = os.path.dirname(mediamtx_path)
+                     subprocess.Popen([mediamtx_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=mediamtx_dir)
                      print("MediaMTX process started. Waiting for it to bind to port 8554...")
                      
                      # Wait up to 10 seconds for port 8554 to become available
