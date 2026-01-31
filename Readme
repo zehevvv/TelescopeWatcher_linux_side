@@ -104,32 +104,18 @@ Now your Raspberry Pi is a Wi-Fi hotspot. Android or PC can connect directly.
 
 
 === Create or edit the startup script to start hostapd and dnsmasq ===
+- Download the porject from github,
+- Run next lines, remmber to replace <user> by the user name:
+sudo apt install git -y
+mkdir /home/<user>/Desktop
+cd /home/<user>/Desktop
+git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
+chmod +x /home/<user>/Desktop/TelescopeWatcher_linux_side/RunServer.py 
+
 - Create the startup script:
 
-- Create SH startup script, replace <user> by the user name
-nano /home/<user>/startup.sh
-
-- Paste this into the script:
-#!/bin/bash
-
-rfkill unblock wifi
-sudo systemctl stop hostapd
-sudo systemctl stop dnsmasq
-sudo ip addr flush dev wlan0
-sudo ip addr add 192.168.4.1/24 dev wlan0
-sudo systemctl start dnsmasq
-sudo systemctl start hostapd
-
-echo "rfkill unlock"
-
-- in the end of the file add this line and replace <user> by the user name
-python3 /home/<user>/Desktop/TelescopeWatcher_linux_side/RunServer.py 
-
-- The last line is needed only if you want to start the mjpeg streamer python script to start after reboot
-
 - Make it executable, replace <user> by the user name:
-chmod +x /home/<user>/startup.sh
-
+chmod +x /home/<user>//Desktop/TelescopeWatcher_linux_side/Others/startup.sh
 
 === Create the Systemd Service File ===
 
@@ -168,13 +154,6 @@ sudo systemctl start delayed-start.service
 
 - instal packages for python server
 sudo apt install python3-serial
-
-- Run next lines, remmber to replace <user> by the user name:
-sudo apt install git -y
-mkdir /home/<user>/Desktop
-cd /home/<user>/Desktop
-git clone https://github.com/zehevvv/TelescopeWatcher_linux_side.git
-chmod +x /home/<user>/Desktop/TelescopeWatcher_linux_side/RunServer.py 
 
 === Install MJPEG streamer ===
 sudo apt install git cmake libjpeg-dev imagemagick libv4l-dev -y
