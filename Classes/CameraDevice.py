@@ -80,59 +80,66 @@ class CameraDevice:
         except Exception as e:
             return 500, f"Error stopping stream: {str(e)}".encode()
 
-    def get_controls(self):
+    def _get_device_controls_list(self):
         if not self.video_device:
             self.video_device = self.get_camera_device_by_type()
             if not self.video_device:
-                return 500, b"No video device found"
+                return None
         
         try:
-            # -l lists all controls with their values
             result = subprocess.run(['v4l2-ctl', '-d', self.video_device, '-l'], 
                                    capture_output=True, text=True, check=True)
-            
             controls = []
-            
-            # Helper to parse lines like:
-            # brightness 0x00980900 (int)    : min=0 max=100 step=1 default=50 value=50
             for line in result.stdout.splitlines():
                 line = line.strip()
                 if not line: continue
-                
                 parts = line.split(':', 1)
                 if len(parts) != 2: continue
                 
                 info_part = parts[0].strip()
                 values_part = parts[1].strip()
                 
-                # extracting name and type
                 name_match = re.match(r'^(\w+)\s+0x[0-9a-fA-F]+\s+\(([\w\s]+)\)', info_part)
                 if not name_match: continue
                 
                 name = name_match.group(1)
                 ctrl_type = name_match.group(2)
                 
-                ctrl_data = {
-                    "name": name,
-                    "type": ctrl_type
-                }
-                
-                # extracting values: min=0 max=100 step=1 default=50 value=50
-                # Split by space and look for k=v
+                ctrl_data = {"name": name, "type": ctrl_type}
                 for pair in values_part.split():
                     if '=' in pair:
                         k, v = pair.split('=', 1)
-                        if v.replace('-', '', 1).isdigit(): # check for negative numbers too
+                        if v.replace('-', '', 1).isdigit():
                             ctrl_data[k] = int(v)
                         else:
                             ctrl_data[k] = v
-                
                 controls.append(ctrl_data)
-            
-            return 200, json.dumps(controls).encode()
-            
-        except Exception as e:
-            return 500, f"Error getting controls: {str(e)}".encode()
+            return controls
+        except Exception:
+            return None
+
+    def get_controls(self):
+        controls = self._get_device_controls_list()
+        if controls is None:
+            return 500, b"Error getting controls or no device found"
+        return 200, json.dumps(controls).encode()
+
+    def reset_defaults(self):
+        controls = self._get_device_controls_list()
+        if controls is None:
+            return 500, b"Error getting controls or no device found"
+        
+        count = 0
+        errors = 0
+        for ctrl in controls:
+            if 'default' in ctrl:
+                try:
+                    subprocess.run(['v4l2-ctl', '-d', self.video_device, '-c', f"{ctrl['name']}={ctrl['default']}"], check=True)
+                    count += 1
+                except:
+                    errors += 1
+        
+        return 200, f"Reset {count} controls to default. {errors} errors.".encode()
 
     def set_control(self, control_name, value):
         if not self.video_device:

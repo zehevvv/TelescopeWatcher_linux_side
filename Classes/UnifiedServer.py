@@ -89,6 +89,9 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         elif subpath.startswith('/controls'):
             code, msg = camera.get_controls()
             self.respond(code, msg)
+        elif subpath.startswith('/reset_controls'):
+            code, msg = camera.reset_defaults()
+            self.respond(code, msg)
         elif subpath.startswith('/set_control'):
             name = query.get('name', [None])[0]
             value = query.get('value', [None])[0]
