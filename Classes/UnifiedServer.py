@@ -8,11 +8,13 @@ import os
 try:
     from Classes.MotorsControl import MotorControl
     from Classes.CameraDevice import CameraDevice
+    from Classes.CameraRotationFinder import CameraRotationFinder
 except (ImportError, ModuleNotFoundError):
     # Fallback if run directly or path issues
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from Classes.MotorsControl import MotorControl
     from Classes.CameraDevice import CameraDevice
+    from Classes.CameraRotationFinder import CameraRotationFinder
 
 import subprocess
 import os
@@ -33,6 +35,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             self.handle_camera(self.server.hd_cam, path.replace('/cam/hd', ''), query)
         elif path.startswith('/cam/uc60'):
             self.handle_camera(self.server.uc60_cam, path.replace('/cam/uc60', ''), query)
+        elif path.startswith('/cam/check_rotation'):
+            self.handle_rotation_check(query)
         elif path == '/ping':
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
@@ -103,6 +107,32 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         else:
             self.respond(404, b"Camera endpoint not found")
 
+    def handle_rotation_check(self, query):
+        cam_name = query.get('camera', [None])[0]
+        cmd = query.get('cmd', [None])[0]
+        
+        if not cam_name or not cmd:
+            self.respond(400, b"Missing 'camera' or 'cmd'")
+            return
+            
+        target_cam = None
+        if cam_name.lower() == 'hd':
+            target_cam = self.server.hd_cam
+        elif cam_name.lower() == 'uc60':
+            target_cam = self.server.uc60_cam
+        else:
+            self.respond(400, f"Unknown camera '{cam_name}'".encode())
+            return
+            
+        try:
+            angle, msg = self.server.rotation_finder.calculate_rotation(target_cam, cmd)
+            if angle is not None:
+                self.respond(200, f"{angle}".encode())
+            else:
+                self.respond(500, f"Error: {msg}".encode())
+        except Exception as e:
+            self.respond(500, f"Server Error: {str(e)}".encode())
+
     def respond(self, code, message):
         self.send_response(code)
         self.send_header('Content-Type', 'text/plain')
@@ -130,11 +160,13 @@ class TelescopeServer:
         self.server.hd_cam = CameraDevice(camera_model="HD USB Camera", camera_type="H264", video_port=5001, rtsp_port=8554)
         self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5002)
         
+        self.server.rotation_finder = CameraRotationFinder(self.server.motor_control)
+        
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
         self.thread.start()
-        print(f"Server running on {self.host}:{self.port}")
-
+        print(f"Server running on {self.host}:{self.port}")                
+        
     def _ensure_mediamtx_running(self):
         try:
             # Check if running
