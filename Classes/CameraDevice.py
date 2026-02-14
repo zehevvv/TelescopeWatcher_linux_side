@@ -51,11 +51,6 @@ class CameraDevice:
             cmd = f"""mjpg_streamer -i "input_uvc.so -d {self.video_device} \
                 -r 1920x1080 \
                 -f 30 \
-                -q 95 \
-                -br 0 \
-                -co 51 \
-                -sh 80 \
-                -sa 64 \
                 " -o "output_http.so -p {self.video_port} -w /usr/local/share/mjpg-streamer/www" """
                 
             print(f"Starting MJPG Stream with command: {cmd}")
