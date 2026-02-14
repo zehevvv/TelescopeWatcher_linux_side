@@ -1,37 +1,69 @@
-# TelescopeWatcher - Raspberry Pi Network Setup
+# 🔭 TelescopeWatcher — Raspberry Pi Network Setup
 
-## Overview
-- Device: Raspberry Pi 5 running Linux (Raspberry Pi OS Lite)
-- Task: Stream camera data using MJPEG-streamer
-- Challenge: Trigger MJPEG-streamer remotely from Android or PC without a router or external Wi-Fi
-- Solution: Two options to connect a PC/Android to the Raspberry Pi
+> **Device:** Raspberry Pi 5 · Raspberry Pi OS Lite  
+> **Goal:** Stream camera data via MJPEG-streamer, controlled remotely from Android or PC
 
 ---
 
-## Choose Your Connection Method
+## 📡 Choose Your Connection Method
 
-| | Option A: Wi-Fi Hotspot | Option B: Ethernet Direct Connection |
-|---|---|---|
-| **How it works** | RPi creates a Wi-Fi network, PC/Android connects to it wirelessly | RPi acts as router on Ethernet cable, Wi-Fi stays normal |
-| **Wi-Fi on RPi** | ❌ No normal Wi-Fi (used for hotspot) | ✅ Normal Wi-Fi works |
-| **PC connects via** | Wi-Fi | Ethernet cable |
-| **RPi IP address** | 192.168.4.1 | 192.168.4.1 |
-| **Best for** | No router available, mobile use | Stationary setup, need internet on RPi |
+Pick **one** of the two options below based on your setup:
+
+<table>
+<tr>
+<th></th>
+<th>🔵 Option A — Wi-Fi Hotspot</th>
+<th>🟢 Option B — Ethernet Direct Connection</th>
+</tr>
+<tr>
+<td><b>How it works</b></td>
+<td>RPi creates a Wi-Fi network, client connects wirelessly</td>
+<td>RPi acts as a router over Ethernet cable, Wi-Fi stays normal</td>
+</tr>
+<tr>
+<td><b>Wi-Fi on RPi</b></td>
+<td>❌ Disabled (used for hotspot)</td>
+<td>✅ Works normally</td>
+</tr>
+<tr>
+<td><b>Client connects via</b></td>
+<td>Wi-Fi</td>
+<td>Ethernet cable</td>
+</tr>
+<tr>
+<td><b>RPi IP address</b></td>
+<td><code>192.168.4.1</code></td>
+<td><code>192.168.4.1</code></td>
+</tr>
+<tr>
+<td><b>Best for</b></td>
+<td>Mobile / outdoor use, no router available</td>
+<td>Stationary setup, RPi needs internet</td>
+</tr>
+<tr>
+<td><b>Survives reboot?</b></td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+</table>
 
 ---
 
-## Option A: Wi-Fi Hotspot
+## 🔵 Option A: Wi-Fi Hotspot
 
-This turns the Raspberry Pi into a Wi-Fi Access Point. The PC/Android connects to the RPi's Wi-Fi network.
-**Note:** The RPi will NOT be connected to any other Wi-Fi network in this mode.
+> Turns the RPi into a Wi-Fi Access Point. The PC/Android connects to the RPi's own Wi-Fi network.  
+> ⚠️ **The RPi will NOT have normal Wi-Fi internet in this mode.**
 
-### Step 1: Stop Wi-Fi from connecting normally
+<details>
+<summary><b>📋 Click to expand setup steps</b></summary>
+
+### Step 1 · Stop Wi-Fi from connecting normally
 
 ```bash
 sudo nmcli device disconnect wlan0
 ```
 
-Edit the config file so Wi-Fi doesn't connect automatically:
+Edit the NetworkManager config:
 
 ```bash
 sudo nano /etc/NetworkManager/NetworkManager.conf
@@ -39,7 +71,7 @@ sudo nano /etc/NetworkManager/NetworkManager.conf
 
 Add this at the end:
 
-```
+```ini
 [keyfile]
 unmanaged-devices=interface-name:wlan0
 ```
@@ -50,24 +82,22 @@ Restart NetworkManager:
 sudo systemctl restart NetworkManager
 ```
 
-### Step 2: Install required packages
+### Step 2 · Install required packages
 
 ```bash
 sudo apt-get update
 sudo apt install hostapd dnsmasq
 ```
 
-### Step 3: Configure hostapd
-
-Open config file:
+### Step 3 · Configure hostapd
 
 ```bash
 sudo nano /etc/hostapd/hostapd.conf
 ```
 
-Paste the following:
+Paste:
 
-```
+```ini
 interface=wlan0
 driver=nl80211
 ssid=RaspberryPiCam
@@ -77,19 +107,19 @@ auth_algs=1
 wmm_enabled=0
 ```
 
-### Step 4: Tell hostapd to use that config file
+### Step 4 · Point hostapd to the config file
 
 ```bash
 sudo nano /etc/default/hostapd
 ```
 
-Find the line that starts with `#DAEMON_CONF=""` and change it to:
+Find `#DAEMON_CONF=\"\"` and change it to:
 
 ```
 DAEMON_CONF="/etc/hostapd/hostapd.conf"
 ```
 
-### Step 5: Enable and start hostapd
+### Step 5 · Enable and start hostapd
 
 ```bash
 sudo systemctl unmask hostapd
@@ -97,52 +127,53 @@ sudo systemctl enable hostapd
 sudo systemctl restart hostapd
 ```
 
-### Step 6: Configure dnsmasq for DHCP
-
-Create a custom config file:
+### Step 6 · Configure dnsmasq for DHCP
 
 ```bash
 sudo nano /etc/dnsmasq.d/raspi-hotspot.conf
 ```
 
-Paste this:
+Paste:
 
-```
+```ini
 interface=wlan0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
 address=/gateway/192.168.4.1
 ```
 
-Disable the default config (optional but recommended):
+Disable the default config (recommended):
 
 ```bash
 sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.backup
 ```
 
-### Step 7: Restart dnsmasq
+### Step 7 · Enable and restart dnsmasq
 
 ```bash
 sudo systemctl enable dnsmasq
 sudo systemctl restart dnsmasq
 ```
 
-You can check if it's working with:
+Verify it's running:
 
 ```bash
 journalctl -u dnsmasq
 ```
 
-### Step 8: Assign static IP to wlan0
+### Step 8 · Assign static IP to wlan0
 
 ```bash
 sudo ip addr add 192.168.4.1/24 dev wlan0
 ```
 
-### Connect from PC/Android
+### ✅ Done! Connect from PC/Android
 
-Connect to the Wi-Fi network **RaspberryPiCam** and reach the RPi at **192.168.4.1**.
+Connect to Wi-Fi network **`RaspberryPiCam`** → RPi is at **`192.168.4.1`**
 
-### How to disable the hotspot and restore normal Wi-Fi
+</details>
+
+<details>
+<summary><b>🔄 Click to expand: How to disable the hotspot and restore normal Wi-Fi</b></summary>
 
 ```bash
 sudo systemctl stop hostapd
@@ -152,35 +183,40 @@ sudo systemctl disable dnsmasq
 sudo ip addr del 192.168.4.1/24 dev wlan0
 ```
 
-Edit NetworkManager config and remove the `[keyfile]` section you added:
+Edit NetworkManager config and remove the `[keyfile]` section:
 
 ```bash
 sudo nano /etc/NetworkManager/NetworkManager.conf
 ```
 
-Remove these lines:
+**Remove** these lines:
 
-```
+```ini
 [keyfile]
 unmanaged-devices=interface-name:wlan0
 ```
 
-Then restart and reconnect:
+Restart and reconnect to Wi-Fi:
 
 ```bash
 sudo systemctl restart NetworkManager
 sudo nmcli device wifi connect "YOUR_WIFI_NAME" password "YOUR_WIFI_PASSWORD"
 ```
 
+</details>
+
 ---
 
-## Option B: Ethernet Direct Connection (Router Mode)
+## 🟢 Option B: Ethernet Direct Connection (Router Mode)
 
-This makes the Raspberry Pi act as a router over the Ethernet cable. The PC plugs in via Ethernet and gets an IP address automatically. Wi-Fi on the RPi continues to work normally.
+> The RPi acts as a router over the Ethernet cable. The PC plugs in and gets an IP automatically.  
+> ✅ **Wi-Fi on the RPi continues to work normally.**  
+> ✅ **No configuration needed on the PC — just plug in the cable.**
 
-**No configuration needed on the PC side — just plug in the cable.**
+<details>
+<summary><b>📋 Click to expand setup steps</b></summary>
 
-### Step 1: Set a static IP on eth0
+### Step 1 · Set a static IP on eth0
 
 ```bash
 sudo nmcli connection add type ethernet con-name eth0-router ifname eth0 \
@@ -193,51 +229,52 @@ sudo nmcli connection up eth0-router
 
 This gives the RPi the IP `192.168.4.1` on the Ethernet port.
 
-### Step 2: Install dnsmasq
+### Step 2 · Install dnsmasq
 
 ```bash
 sudo apt update
 sudo apt install dnsmasq
 ```
 
-### Step 3: Configure dnsmasq for DHCP on eth0
-
-Create a config file:
+### Step 3 · Configure dnsmasq for DHCP on eth0
 
 ```bash
 sudo nano /etc/dnsmasq.d/eth0-router.conf
 ```
 
-Paste this:
+Paste:
 
-```
+```ini
 interface=eth0
 dhcp-range=192.168.4.50,192.168.4.150,255.255.255.0,24h
 dhcp-option=3,192.168.4.1
 dhcp-option=6,8.8.8.8
 ```
 
-- `interface=eth0` — only serve DHCP on the Ethernet port (not Wi-Fi)
-- `dhcp-range` — gives connected devices an IP between 192.168.4.50 and 192.168.4.150
-- `dhcp-option=3` — tells the PC that 192.168.4.1 (the RPi) is the gateway
-- `dhcp-option=6` — DNS server
+| Line | Meaning |
+|------|---------|
+| `interface=eth0` | Only serve DHCP on the Ethernet port |
+| `dhcp-range` | Assigns IPs from `192.168.4.50` to `192.168.4.150` |
+| `dhcp-option=3` | Tells clients the gateway is `192.168.4.1` (the RPi) |
+| `dhcp-option=6` | DNS server for clients |
 
-### Step 4: Enable and restart dnsmasq
+### Step 4 · Enable and restart dnsmasq
 
 ```bash
 sudo systemctl enable dnsmasq
 sudo systemctl restart dnsmasq
 ```
 
-### Connect from PC
+### ✅ Done! Connect from PC
 
-Plug an Ethernet cable between the RPi and your PC. The PC will automatically:
-- Get an IP address like `192.168.4.x`
-- See the RPi as the gateway at `192.168.4.1`
+Plug in an Ethernet cable between the RPi and your PC. The PC will automatically:
+- 🔹 Get an IP address like `192.168.4.x`
+- 🔹 See the RPi as the gateway at `192.168.4.1`
 
-From the PC, reach the RPi at **192.168.4.1**.
+</details>
 
-### How to disable the Ethernet router mode
+<details>
+<summary><b>🔄 Click to expand: How to disable Ethernet router mode</b></summary>
 
 ```bash
 sudo nmcli connection delete eth0-router
@@ -245,9 +282,11 @@ sudo rm /etc/dnsmasq.d/eth0-router.conf
 sudo systemctl restart dnsmasq
 ```
 
+</details>
+
 ---
 
-## Verify Connection (Both Options)
+## ✅ Verify Connection (Both Options)
 
 From your PC, test connectivity:
 
@@ -255,7 +294,7 @@ From your PC, test connectivity:
 ping 192.168.4.1
 ```
 
-Check status on the RPi:
+On the RPi, check network status:
 
 ```bash
 nmcli device status
