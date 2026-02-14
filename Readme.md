@@ -68,7 +68,7 @@ Paste:
 
 ```ini
 interface=wlan0
-driversupport=nl80211
+driver=nl80211
 ssid=RaspberryPiCam
 hw_mode=g
 channel=6
@@ -237,13 +237,91 @@ Plug in an Ethernet cable between the RPi and your PC. The PC will automatically
 
 ---
 
-### ��� How to disable Ethernet router mode
+### 🔄 How to disable Ethernet router mode
 
 ```bash
 sudo nmcli connection delete eth0-router
 sudo rm /etc/dnsmasq.d/eth0-router.conf
 sudo systemctl restart dnsmasq
 ```
+
+---
+
+## 🚀 Auto-Start RunServer.py on Boot
+
+Create a systemd service so `RunServer.py` starts automatically when the Raspberry Pi boots up.
+
+### Step 1 · Create the service file
+
+```bash
+sudo nano /etc/systemd/system/telescope-server.service
+```
+
+Paste:
+
+```ini
+[Unit]
+Description=TelescopeWatcher Server
+After=network.target
+
+[Service]
+Type=simple
+User=israelf
+WorkingDirectory=/home/israelf/Desktop/TelescopeWatcher_linux_side
+ExecStart=/usr/bin/python3 /home/israelf/Desktop/TelescopeWatcher_linux_side/RunServer.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+StandardError=append:/home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+| Line | Meaning |
+|------|---------|
+| `After=network.target` | Wait for network to be ready before starting |
+| `User=israelf` | Run as your user (not root) |
+| `WorkingDirectory` | Set the working directory so relative imports work |
+| `ExecStart` | The command to run the server |
+| `Restart=on-failure` | Automatically restart if it crashes |
+| `RestartSec=5` | Wait 5 seconds before restarting |
+| `StandardOutput/Error` | Log output to a file for debugging |
+
+### Step 2 · Enable and start the service
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable telescope-server
+sudo systemctl start telescope-server
+```
+
+### Step 3 · Verify it's running
+
+```bash
+sudo systemctl status telescope-server
+```
+
+You can also check the logs:
+
+```bash
+cat /home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+```
+
+Or follow the logs live:
+
+```bash
+journalctl -u telescope-server -f
+```
+
+### 🔄 Useful commands
+
+| Command | What it does |
+|---------|-------------|
+| `sudo systemctl stop telescope-server` | Stop the server |
+| `sudo systemctl restart telescope-server` | Restart the server |
+| `sudo systemctl disable telescope-server` | Disable auto-start on boot |
+| `sudo systemctl status telescope-server` | Check if it's running |
 
 ---
 
