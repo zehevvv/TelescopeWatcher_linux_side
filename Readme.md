@@ -1,6 +1,6 @@
 # 🔭 TelescopeWatcher — Raspberry Pi Network Setup
 
-> **Device:** Raspberry Pi 5 · Raspberry Pi OS Lite  
+> **Device:** Raspberry Pi 5 · Raspberry Pi OS Lite
 > **Goal:** Stream camera data via MJPEG-streamer, controlled remotely from Android or PC
 
 ---
@@ -9,53 +9,22 @@
 
 Pick **one** of the two options below based on your setup:
 
-<table>
-<tr>
-<th></th>
-<th>🔵 Option A — Wi-Fi Hotspot</th>
-<th>🟢 Option B — Ethernet Direct Connection</th>
-</tr>
-<tr>
-<td><b>How it works</b></td>
-<td>RPi creates a Wi-Fi network, client connects wirelessly</td>
-<td>RPi acts as a router over Ethernet cable, Wi-Fi stays normal</td>
-</tr>
-<tr>
-<td><b>Wi-Fi on RPi</b></td>
-<td>❌ Disabled (used for hotspot)</td>
-<td>✅ Works normally</td>
-</tr>
-<tr>
-<td><b>Client connects via</b></td>
-<td>Wi-Fi</td>
-<td>Ethernet cable</td>
-</tr>
-<tr>
-<td><b>RPi IP address</b></td>
-<td><code>192.168.4.1</code></td>
-<td><code>192.168.4.1</code></td>
-</tr>
-<tr>
-<td><b>Best for</b></td>
-<td>Mobile / outdoor use, no router available</td>
-<td>Stationary setup, RPi needs internet</td>
-</tr>
-<tr>
-<td><b>Survives reboot?</b></td>
-<td>✅ Yes</td>
-<td>✅ Yes</td>
-</tr>
-</table>
+| | 🔵 Option A — Wi-Fi Hotspot | 🟢 Option B — Ethernet Direct Connection |
+|---|---|---|
+| **How it works** | RPi creates a Wi-Fi network, client connects wirelessly | RPi acts as a router over Ethernet cable, Wi-Fi stays normal |
+| **Wi-Fi on RPi** | ❌ Disabled (used for hotspot) | ✅ Works normally |
+| **Client connects via** | Wi-Fi | Ethernet cable |
+| **RPi IP address** | `192.168.4.1` | `192.168.4.1` |
+| **Best for** | Mobile / outdoor use, no router available | Stationary setup, RPi needs internet |
+| **Survives reboot?** | ✅ Yes | ✅ Yes |
 
 ---
 
 ## 🔵 Option A: Wi-Fi Hotspot
 
-> Turns the RPi into a Wi-Fi Access Point. The PC/Android connects to the RPi's own Wi-Fi network.  
-> ⚠️ **The RPi will NOT have normal Wi-Fi internet in this mode.**
+Turns the RPi into a Wi-Fi Access Point. The PC/Android connects to the RPi's own Wi-Fi network.
 
-<details>
-<summary><b>📋 Click to expand setup steps</b></summary>
+> ⚠️ **The RPi will NOT have normal Wi-Fi internet in this mode.**
 
 ### Step 1 · Stop Wi-Fi from connecting normally
 
@@ -113,7 +82,7 @@ wmm_enabled=0
 sudo nano /etc/default/hostapd
 ```
 
-Find `#DAEMON_CONF=\"\"` and change it to:
+Find `#DAEMON_CONF=""` and change it to:
 
 ```
 DAEMON_CONF="/etc/hostapd/hostapd.conf"
@@ -170,10 +139,9 @@ sudo ip addr add 192.168.4.1/24 dev wlan0
 
 Connect to Wi-Fi network **`RaspberryPiCam`** → RPi is at **`192.168.4.1`**
 
-</details>
+---
 
-<details>
-<summary><b>🔄 Click to expand: How to disable the hotspot and restore normal Wi-Fi</b></summary>
+### 🔄 How to disable the hotspot and restore normal Wi-Fi
 
 ```bash
 sudo systemctl stop hostapd
@@ -203,18 +171,14 @@ sudo systemctl restart NetworkManager
 sudo nmcli device wifi connect "YOUR_WIFI_NAME" password "YOUR_WIFI_PASSWORD"
 ```
 
-</details>
-
 ---
 
 ## 🟢 Option B: Ethernet Direct Connection (Router Mode)
 
-> The RPi acts as a router over the Ethernet cable. The PC plugs in and gets an IP automatically.  
-> ✅ **Wi-Fi on the RPi continues to work normally.**  
-> ✅ **No configuration needed on the PC — just plug in the cable.**
+The RPi acts as a router over the Ethernet cable. The PC plugs in and gets an IP automatically.
 
-<details>
-<summary><b>📋 Click to expand setup steps</b></summary>
+> ✅ **Wi-Fi on the RPi continues to work normally.**
+> ✅ **No configuration needed on the PC — just plug in the cable.**
 
 ### Step 1 · Set a static IP on eth0
 
@@ -271,10 +235,9 @@ Plug in an Ethernet cable between the RPi and your PC. The PC will automatically
 - 🔹 Get an IP address like `192.168.4.x`
 - 🔹 See the RPi as the gateway at `192.168.4.1`
 
-</details>
+---
 
-<details>
-<summary><b>🔄 Click to expand: How to disable Ethernet router mode</b></summary>
+### 🔄 How to disable Ethernet router mode
 
 ```bash
 sudo nmcli connection delete eth0-router
@@ -282,7 +245,83 @@ sudo rm /etc/dnsmasq.d/eth0-router.conf
 sudo systemctl restart dnsmasq
 ```
 
-</details>
+---
+
+## 🚀 Auto-Start RunServer.py on Boot
+
+Create a systemd service so `RunServer.py` starts automatically when the Raspberry Pi boots up.
+
+### Step 1 · Create the service file
+
+```bash
+sudo nano /etc/systemd/system/telescope-server.service
+```
+
+Paste:
+
+```ini
+[Unit]
+Description=TelescopeWatcher Server
+After=network.target
+
+[Service]
+Type=simple
+User=israelf
+WorkingDirectory=/home/israelf/Desktop/TelescopeWatcher_linux_side
+ExecStart=/usr/bin/python3 /home/israelf/Desktop/TelescopeWatcher_linux_side/RunServer.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+StandardError=append:/home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+| Line | Meaning |
+|------|---------|
+| `After=network.target` | Wait for network to be ready before starting |
+| `User=israelf` | Run as your user (not root) |
+| `WorkingDirectory` | Set the working directory so relative imports work |
+| `ExecStart` | The command to run the server |
+| `Restart=on-failure` | Automatically restart if it crashes |
+| `RestartSec=5` | Wait 5 seconds before restarting |
+| `StandardOutput/Error` | Log output to a file for debugging |
+
+### Step 2 · Enable and start the service
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable telescope-server
+sudo systemctl start telescope-server
+```
+
+### Step 3 · Verify it's running
+
+```bash
+sudo systemctl status telescope-server
+```
+
+You can also check the logs:
+
+```bash
+cat /home/israelf/Desktop/TelescopeWatcher_linux_side/telescope-server.log
+```
+
+Or follow the logs live:
+
+```bash
+journalctl -u telescope-server -f
+```
+
+### 🔄 Useful commands
+
+| Command | What it does |
+|---------|-------------|
+| `sudo systemctl stop telescope-server` | Stop the server |
+| `sudo systemctl restart telescope-server` | Restart the server |
+| `sudo systemctl disable telescope-server` | Disable auto-start on boot |
+| `sudo systemctl status telescope-server` | Check if it's running |
 
 ---
 
