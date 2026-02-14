@@ -83,7 +83,8 @@ class CameraRotationFinder:
                     image_array = np.asarray(bytearray(response.content), dtype=np.uint8)
                     frame = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE)
                     if frame is not None:
-                        return frame
+                        # Flip 180 degrees
+                        return cv2.rotate(frame, cv2.ROTATE_180)
             except Exception as e:
                 print(f"Snapshot failed: {e}")
                 
@@ -96,13 +97,16 @@ class CameraRotationFinder:
                     ret, frame_read = cap.read()
                     cap.release()
                     if ret and frame_read is not None:
-                        return cv2.cvtColor(frame_read, cv2.COLOR_BGR2GRAY)
+                        gray = cv2.cvtColor(frame_read, cv2.COLOR_BGR2GRAY)
+                        # Flip 180 degrees
+                        return cv2.rotate(gray, cv2.ROTATE_180)
             except Exception as e:
                 print(f"RTSP Capture failed: {e}")
         
         # Strategy 3: Direct Device Access (Fallback)
         # Only try if we have a device path
         if camera_device.video_device:
+            cap = None
             try:
                 print(f"Attempting direct capture from {camera_device.video_device}")
                 cap = cv2.VideoCapture(camera_device.video_device)
@@ -111,11 +115,15 @@ class CameraRotationFinder:
                     for _ in range(5):
                         cap.read()
                     ret, frame_read = cap.read()
-                    cap.release()
                     if ret and frame_read is not None:
-                         return cv2.cvtColor(frame_read, cv2.COLOR_BGR2GRAY)
+                         gray = cv2.cvtColor(frame_read, cv2.COLOR_BGR2GRAY)
+                         # Flip 180 degrees
+                         return cv2.rotate(gray, cv2.ROTATE_180)
             except Exception as e:
                  print(f"Direct capture failed: {e}")
+            finally:
+                if cap:
+                    cap.release()
              
         return None
 

@@ -45,7 +45,7 @@ class CameraDevice:
             return 500, b"No suitable video device found"
 
         self.video_device = current_device
-        print(f"Using video device: {self.video_device}")
+        print(f"Using video device: {self.video_device}, starting stream with type {self.camera_type}")
         
         if self.camera_type == "MJPG":
             cmd = f"""mjpg_streamer -i "input_uvc.so -d {self.video_device} \
@@ -57,6 +57,8 @@ class CameraDevice:
                 -sh 80 \
                 -sa 64 \
                 " -o "output_http.so -p {self.video_port} -w /usr/local/share/mjpg-streamer/www" """
+                
+            print(f"Starting MJPG Stream with command: {cmd}")
         elif self.camera_type == "H264":
             cmd = f"""ffmpeg -f v4l2 -input_format h264 -video_size 1920x1080 -framerate 15 \
             -i {self.video_device} -c:v copy -f rtsp rtsp://localhost:{self.rtsp_port}/cam"""

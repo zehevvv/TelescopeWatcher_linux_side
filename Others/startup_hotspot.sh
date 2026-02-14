@@ -28,7 +28,7 @@ LOGFILE=/home/israelf/Desktop/TelescopeWatcher_linux_side/startup.log
     cd /home/israelf/Desktop/TelescopeWatcher_linux_side
 
     # Ensure executable
-    chmod +x ./mediamtx
+    chmod +x ./Others/mediamtx/mediamtx
 
     # Kill any existing
     pkill -f mediamtx
@@ -37,7 +37,7 @@ LOGFILE=/home/israelf/Desktop/TelescopeWatcher_linux_side/startup.log
 
     # Start mediamtx
     echo "Starting mediamtx..."
-    ./mediamtx >> /home/israelf/Desktop/TelescopeWatcher_linux_side/mediamtx.log 2>&1 &
+    (cd Others/mediamtx && ./mediamtx) >> /home/israelf/Desktop/TelescopeWatcher_linux_side/mediamtx.log 2>&1 &
 
     # Wait for port
     for i in {1..20}; do
