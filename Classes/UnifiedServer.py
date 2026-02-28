@@ -10,6 +10,7 @@ try:
     from Classes.CameraDevice import CameraDevice
     from Classes.CameraRotationFinder import CameraRotationFinder
     from Classes.PlateSolver import PlateSolver
+    from Classes.StarFollower import StarFollower
 except (ImportError, ModuleNotFoundError):
     # Fallback if run directly or path issues
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,6 +18,7 @@ except (ImportError, ModuleNotFoundError):
     from Classes.CameraDevice import CameraDevice
     from Classes.CameraRotationFinder import CameraRotationFinder
     from Classes.PlateSolver import PlateSolver
+    from Classes.StarFollower import StarFollower
 
 import subprocess
 import os
@@ -41,6 +43,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             self.handle_rotation_check(query)
         elif path.startswith('/cam/solve'):
             self.handle_plate_solve(query)
+        elif path.startswith('/star_follower'):
+            self.handle_star_follower(path, query)
         elif path == '/ping':
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
@@ -160,6 +164,76 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(result).encode())
 
+    def handle_star_follower(self, path, query):
+        """
+        Routes:
+            GET /star_follower/start?camera=hd|uc60&duration=<s>&threshold=<%>&steps_cmd=<cmd>&speed_cmd=<cmd>
+            GET /star_follower/stop
+            GET /star_follower/status          → JSON
+            GET /star_follower/debug_star?camera=hd|uc60  → JSON
+        """
+        sf = self.server.star_follower
+
+        if '/start' in path:
+            # Required parameters
+            cam_name   = query.get('camera',    [None])[0]
+            duration   = query.get('duration',  [None])[0]
+            threshold  = query.get('threshold', [None])[0]
+            steps_cmd  = query.get('steps_cmd', [None])[0]
+            speed_cmd  = query.get('speed_cmd', [None])[0]
+
+            missing = [n for n, v in [('camera', cam_name), ('duration', duration),
+                                      ('threshold', threshold), ('steps_cmd', steps_cmd),
+                                      ('speed_cmd', speed_cmd)] if v is None]
+            if missing:
+                self.respond(400, f"Missing parameters: {', '.join(missing)}".encode())
+                return
+
+            if cam_name.lower() == 'hd':
+                camera = self.server.hd_cam
+            elif cam_name.lower() == 'uc60':
+                camera = self.server.uc60_cam
+            else:
+                self.respond(400, f"Unknown camera '{cam_name}'".encode())
+                return
+
+            try:
+                sf.start(
+                    duration=float(duration),
+                    threshold=float(threshold),
+                    steps_cmd=steps_cmd,
+                    speed_cmd=speed_cmd,
+                    camera_device=camera,
+                )
+                self.respond(200, b"Star follower started")
+            except Exception as e:
+                self.respond(500, f"Error starting star follower: {e}".encode())
+
+        elif '/stop' in path:
+            sf.stop()
+            self.respond(200, b"Star follower stopped")
+
+        elif '/status' in path:
+            import json
+            status = sf.get_status()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(status).encode())
+
+        elif '/debug_star' in path:
+            import json
+            cam_name = query.get('camera', ['hd'])[0]
+            camera = self.server.hd_cam if cam_name.lower() == 'hd' else self.server.uc60_cam
+            result = sf.debug_star(camera)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+
+        else:
+            self.respond(404, b"Star follower endpoint not found")
+
     def respond(self, code, message):
         self.send_response(code)
         self.send_header('Content-Type', 'text/plain')
@@ -189,7 +263,8 @@ class TelescopeServer:
         self.server.uc60_cam = CameraDevice(camera_model="UC60", camera_type="MJPG", video_port=5002)
         
         self.server.rotation_finder = CameraRotationFinder(self.server.motor_control)
-        
+        self.server.star_follower = StarFollower(self.server.motor_control)
+
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
         self.thread.start()
