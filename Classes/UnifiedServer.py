@@ -9,12 +9,14 @@ try:
     from Classes.MotorsControl import MotorControl
     from Classes.CameraDevice import CameraDevice
     from Classes.CameraRotationFinder import CameraRotationFinder
+    from Classes.PlateSolver import PlateSolver
 except (ImportError, ModuleNotFoundError):
     # Fallback if run directly or path issues
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from Classes.MotorsControl import MotorControl
     from Classes.CameraDevice import CameraDevice
     from Classes.CameraRotationFinder import CameraRotationFinder
+    from Classes.PlateSolver import PlateSolver
 
 import subprocess
 import os
@@ -37,6 +39,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             self.handle_camera(self.server.uc60_cam, path.replace('/cam/uc60', ''), query)
         elif path.startswith('/cam/check_rotation'):
             self.handle_rotation_check(query)
+        elif path.startswith('/cam/solve'):
+            self.handle_plate_solve(query)
         elif path == '/ping':
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
@@ -132,6 +136,29 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 self.respond(500, f"Error: {msg}".encode())
         except Exception as e:
             self.respond(500, f"Server Error: {str(e)}".encode())
+            
+    def handle_plate_solve(self, query):
+        """
+        Usage: /cam/solve?camera=hd
+        """
+        cam_name = query.get('camera', ['hd'])[0]
+        
+        # Select camera
+        camera = self.server.hd_cam if cam_name == 'hd' else self.server.uc60_cam
+        
+        # Initialize solver if not exists
+        if not hasattr(self.server, 'plate_solver'):
+            self.server.plate_solver = PlateSolver()
+            
+        # Run solve
+        result = self.server.plate_solver.solve(camera)
+        
+        # Return JSON result
+        import json
+        self.send_response(200 if result['success'] else 500)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(result).encode())
 
     def respond(self, code, message):
         self.send_response(code)
