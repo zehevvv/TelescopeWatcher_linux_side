@@ -125,10 +125,29 @@ class StarFollower:
             return {'found': False, 'error': 'Could not capture frame'}
 
         h, w = frame.shape[:2]
+
+        # Compute the same pipeline as _find_star to expose diagnostics
+        frame_f      = frame.astype(np.float32)
+        background_f = cv2.GaussianBlur(frame_f, (51, 51), 0)
+        residual_f   = frame_f - background_f
+        blurred      = cv2.GaussianBlur(residual_f, (5, 5), 1)
+        _, max_val, _, _ = cv2.minMaxLoc(blurred)
+        mean_v, std_v = cv2.meanStdDev(blurred)
+        mean_v = float(mean_v[0][0])
+        std_v  = float(std_v[0][0])
+        sigma  = round((max_val - mean_v) / std_v, 2) if std_v >= 0.5 else 0.0
+
         star = self._find_star(frame)
 
         if star is None:
-            return {'found': False, 'frame_w': w, 'frame_h': h}
+            return {
+                'found':      False,
+                'frame_w':    w,
+                'frame_h':    h,
+                'peak_sigma': sigma,
+                'peak_val':   round(float(max_val), 2),
+                'noise_std':  round(std_v, 2),
+            }
 
         cx, cy = star
         offset_x_pct = round((cx - w / 2) / w * 100, 2)
@@ -142,6 +161,9 @@ class StarFollower:
             'frame_h':      h,
             'offset_x_pct': offset_x_pct,
             'offset_y_pct': offset_y_pct,
+            'peak_sigma':   sigma,
+            'peak_val':     round(float(max_val), 2),
+            'noise_std':    round(std_v, 2),
         }
 
     # ------------------------------------------------------------------
@@ -274,12 +296,26 @@ class StarFollower:
 
         Returns (cx, cy) in pixel coordinates, or None if the frame is too dark.
         """
-        blurred = cv2.GaussianBlur(frame, (9, 9), 2)
+        # Step 1: float subtraction preserves negative residuals (uint8 clips
+        # negatives to 0, making std artificially near-zero and breaking sigma).
+        frame_f      = frame.astype(np.float32)
+        background_f = cv2.GaussianBlur(frame_f, (51, 51), 0)
+        residual_f   = frame_f - background_f   # zero-mean; negatives kept
 
+        # Step 2: small blur to merge the star blob without over-diluting it.
+        blurred = cv2.GaussianBlur(residual_f, (5, 5), 1)
+
+        # Step 3: find the single brightest point.
         _, max_val, _, max_loc = cv2.minMaxLoc(blurred)
 
-        # Reject frames where nothing is meaningfully bright
-        if max_val < 10:
+        # Step 4: sigma above zero-mean background.
+        # With a proper float residual, noise peaks at ~4-5 sigma over a large
+        # frame; a real star easily reaches 20+ sigma.
+        mean, std = cv2.meanStdDev(blurred)
+        mean = float(mean[0][0])
+        std  = float(std[0][0])
+
+        if std < 0.1 or (max_val - mean) < 8 * std:
             return None
 
         return max_loc  # (cx, cy)
