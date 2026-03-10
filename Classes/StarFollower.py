@@ -126,16 +126,18 @@ class StarFollower:
 
         h, w = frame.shape[:2]
 
-        # Compute the same pipeline as _find_star to expose diagnostics
+        # Compute the same DoG pipeline as _find_star to expose diagnostics
         frame_f      = frame.astype(np.float32)
         background_f = cv2.GaussianBlur(frame_f, (51, 51), 0)
         residual_f   = frame_f - background_f
-        blurred      = cv2.GaussianBlur(residual_f, (5, 5), 1)
-        _, max_val, _, _ = cv2.minMaxLoc(blurred)
-        mean_v, std_v = cv2.meanStdDev(blurred)
+        tight  = cv2.GaussianBlur(residual_f, (5, 5), 1)
+        wide   = cv2.GaussianBlur(residual_f, (21, 21), 5)
+        dog    = tight - wide
+        _, max_val, _, _ = cv2.minMaxLoc(dog)
+        mean_v, std_v = cv2.meanStdDev(dog)
         mean_v = float(mean_v[0][0])
         std_v  = float(std_v[0][0])
-        sigma  = round((max_val - mean_v) / std_v, 2) if std_v >= 0.5 else 0.0
+        sigma  = round((max_val - mean_v) / std_v, 2) if std_v >= 0.1 else 0.0
 
         star = self._find_star(frame)
 
@@ -296,26 +298,35 @@ class StarFollower:
 
         Returns (cx, cy) in pixel coordinates, or None if the frame is too dark.
         """
-        # Step 1: float subtraction preserves negative residuals (uint8 clips
-        # negatives to 0, making std artificially near-zero and breaking sigma).
+        # Step 1: float background subtraction (removes slow sky gradient).
         frame_f      = frame.astype(np.float32)
         background_f = cv2.GaussianBlur(frame_f, (51, 51), 0)
-        residual_f   = frame_f - background_f   # zero-mean; negatives kept
+        residual_f   = frame_f - background_f
 
-        # Step 2: small blur to merge the star blob without over-diluting it.
-        blurred = cv2.GaussianBlur(residual_f, (5, 5), 1)
+        # Step 2: Difference of Gaussians (DoG) — the key point-source filter.
+        # A real star (2-5 px wide) gives a LARGE DoG response because the tight
+        # blur sees it strongly and the wide blur sees it weakly → big difference.
+        # A JPEG compression block artifact (8+ px wide) gives a SMALL DoG
+        # response because both blur sizes see it with similar amplitude → near 0.
+        tight = cv2.GaussianBlur(residual_f, (5, 5), 1)
+        wide  = cv2.GaussianBlur(residual_f, (21, 21), 5)
+        dog   = tight - wide   # strong only for point-source-sized features
 
-        # Step 3: find the single brightest point.
-        _, max_val, _, max_loc = cv2.minMaxLoc(blurred)
+        # Step 3: find the brightest point in the DoG image.
+        _, max_val, _, max_loc = cv2.minMaxLoc(dog)
 
-        # Step 4: sigma above zero-mean background.
-        # With a proper float residual, noise peaks at ~4-5 sigma over a large
-        # frame; a real star easily reaches 20+ sigma.
-        mean, std = cv2.meanStdDev(blurred)
+        # Step 4: sigma test on the DoG image.
+        mean, std = cv2.meanStdDev(dog)
         mean = float(mean[0][0])
         std  = float(std[0][0])
 
-        if std < 0.1 or (max_val - mean) < 8 * std:
+        if std < 0.1:
+            return None
+
+        # no-star artifact: ~55-68σ  |  real star: ~131-290σ
+        # Threshold at 100σ sits cleanly in the gap.
+        sigma = (max_val - mean) / std
+        if sigma < 80:
             return None
 
         return max_loc  # (cx, cy)
