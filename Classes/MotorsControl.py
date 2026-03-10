@@ -11,6 +11,8 @@ class MotorControl:
         self.__serial_buffer = bytearray()
         self.__serial_buffer_lock = threading.Lock()
 
+        self.__serial_write_lock = threading.Lock()
+
         try:
             self.__serial_connection = serial.Serial(
                 port=serial_port,
@@ -55,8 +57,9 @@ class MotorControl:
         if command:
             if self.__serial_connection and self.__serial_connection.is_open:
                 try:
-                    print(f"Writing to serial: {command}")
-                    self.__serial_connection.write(f"{command}\n".encode())
+                    with self.__serial_write_lock:
+                        print(f"Writing to serial: {command}")
+                        self.__serial_connection.write(f"{command}\n".encode())
                     return True
                 except Exception as e:
                     print(f"Serial write error: {e}")

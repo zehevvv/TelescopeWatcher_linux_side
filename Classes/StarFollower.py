@@ -22,9 +22,11 @@ class StarFollower:
 
     # Raw Arduino serial direction strings
     _CMD_UP    = "v=1\nd=1\n"
-    _CMD_DOWN  = "v=1\nd=0\n"
+    _CMD_DOWN  = "v=1\nd=0\n"    
     _CMD_LEFT  = "v=0\nd=0\n"
     _CMD_RIGHT = "v=0\nd=1\n"
+    _ALWAYS_ENABLE_ON = "e=1\n"  
+    _ALWAYS_ENABLE_OFF = "e=0\n"  
 
     def __init__(self, motor_control):
         self.motor = motor_control
@@ -33,6 +35,7 @@ class StarFollower:
         self._active_event = threading.Event()
         self._params: dict = {}
         self._thread: threading.Thread | None = None
+        self._keep_alive_thread: threading.Thread | None = None
 
     # ------------------------------------------------------------------
     # Public API (called by the HTTP handler; never block the server)
@@ -75,6 +78,13 @@ class StarFollower:
             print("[StarFollower] Background thread started.")
         else:
             print("[StarFollower] Parameters updated; existing thread will use new values.")
+
+        # Spawn the keep-alive thread only once
+        if self._keep_alive_thread is None or not self._keep_alive_thread.is_alive():
+            self._keep_alive_thread = threading.Thread(target=self._run_keep_alive, daemon=True,
+                                                       name="StarFollowerKeepAliveThread")
+            self._keep_alive_thread.start()
+            print("[StarFollower] Keep-alive thread started.")
 
     def stop(self) -> None:
         """Pause the auto-centre loop.  The background thread keeps running but idles."""
@@ -216,6 +226,30 @@ class StarFollower:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _run_keep_alive(self) -> None:
+        """
+        Dedicated daemon thread that keeps the up/down motor energised while
+        the follower is active.
+
+        While active  – sends v=1 (select vertical axis) + e=1 every second.
+        When stopped  – sends v=1 + e=0 once, then idles until re-activated.
+        """
+        print("[StarFollower] Keep-alive thread ready.")
+        while True:
+            # Block here until start() sets the event
+            self._active_event.wait()
+
+            # Inner loop: send keep-alive every second while active
+            while self._active_event.is_set():
+                self.motor.send_command("v=1")  # select up/down motor
+                self.motor.send_command(self._ALWAYS_ENABLE_ON)
+                time.sleep(1)
+
+            # Active event cleared: release motor hold
+            self.motor.send_command("v=1")  # select up/down motor
+            self.motor.send_command(self._ALWAYS_ENABLE_OFF)
+            print("[StarFollower] Keep-alive disabled (e=0 sent to up/down motor).")
 
     def _send_move(self, speed_cmd: str, steps_cmd: str, direction_cmd: str) -> None:
         """Send the three-stage command sequence: speed → steps → direction."""
