@@ -259,37 +259,30 @@ class StarFollower:
 
     def _find_star(self, frame) -> tuple[int, int] | None:
         """
-        Locate the largest bright blob (the star) in a grayscale frame.
+        Locate the brightest star in a grayscale frame.
 
         Pipeline:
-            1. Gaussian blur  – removes noise and isolated hot pixels.
-            2. Otsu threshold – adaptively separates bright star from dark sky.
-            3. Find contours  – connected bright regions.
-            4. Largest contour centroid → star position.
+            1. Gaussian blur  – merges star pixels into a smooth blob and
+                               suppresses isolated hot pixels / noise.
+            2. minMaxLoc      – the single brightest point in the blurred image
+                               is the star's centroid.
 
-        Returns (cx, cy) in pixel coordinates, or None if nothing is found.
+        Otsu thresholding is intentionally avoided: in a nearly all-black sky
+        image the vast majority of pixels are background, so Otsu splits noise
+        levels rather than separating star from sky, producing wildly wrong
+        centroids.
+
+        Returns (cx, cy) in pixel coordinates, or None if the frame is too dark.
         """
         blurred = cv2.GaussianBlur(frame, (9, 9), 2)
 
-        _, thresh = cv2.threshold(blurred, 0, 255,
-                                  cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, max_val, _, max_loc = cv2.minMaxLoc(blurred)
 
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
+        # Reject frames where nothing is meaningfully bright
+        if max_val < 10:
             return None
 
-        largest = max(contours, key=cv2.contourArea)
-        if cv2.contourArea(largest) < 1:
-            return None
-
-        M = cv2.moments(largest)
-        if M['m00'] == 0:
-            return None
-
-        cx = int(M['m10'] / M['m00'])
-        cy = int(M['m01'] / M['m00'])
-        return cx, cy
+        return max_loc  # (cx, cy)
 
     def _capture_frame(self, camera_device):
         """
