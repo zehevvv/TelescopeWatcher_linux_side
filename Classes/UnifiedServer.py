@@ -250,7 +250,6 @@ class TelescopeServer:
 
     def start(self):
         print("Starting Telescope Unified Server...")
-        self._ensure_mediamtx_running()
         
         self.server = HTTPServer((self.host, self.port), UnifiedHandler)
         
