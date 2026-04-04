@@ -11,6 +11,7 @@ try:
     from Classes.CameraRotationFinder import CameraRotationFinder
     from Classes.PlateSolver import PlateSolver
     from Classes.StarFollower import StarFollower
+    from Classes.SiderealTracker import SiderealTracker
 except (ImportError, ModuleNotFoundError):
     # Fallback if run directly or path issues
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -19,6 +20,7 @@ except (ImportError, ModuleNotFoundError):
     from Classes.CameraRotationFinder import CameraRotationFinder
     from Classes.PlateSolver import PlateSolver
     from Classes.StarFollower import StarFollower
+    from Classes.SiderealTracker import SiderealTracker
 
 import subprocess
 import os
@@ -45,6 +47,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             self.handle_plate_solve(query)
         elif path.startswith('/star_follower'):
             self.handle_star_follower(path, query)
+        elif path.startswith('/sidereal'):
+            self.handle_sidereal(path, query)
         elif path == '/ping':
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
@@ -198,6 +202,10 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 return
 
             try:
+                # Mutual exclusion: stop sidereal tracker if it is running.
+                if self.server.sidereal_tracker.get_status()['active']:
+                    self.server.sidereal_tracker.stop()
+
                 sf.start(
                     duration=float(duration),
                     threshold=float(threshold),
@@ -234,6 +242,59 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         else:
             self.respond(404, b"Star follower endpoint not found")
 
+    def handle_sidereal(self, path, query):
+        """
+        Routes:
+            GET /sidereal/start?ra=<hours>&dec=<deg>&lat=<deg>&lon=<deg>&interval=<sec>
+            GET /sidereal/stop
+            GET /sidereal/status  → JSON
+        """
+        import json
+        st = self.server.sidereal_tracker
+
+        if '/start' in path:
+            ra       = query.get('ra',       [None])[0]
+            dec      = query.get('dec',      [None])[0]
+            lat      = query.get('lat',      [None])[0]
+            lon      = query.get('lon',      [None])[0]
+            interval = query.get('interval', ['5.0'])[0]
+
+            missing = [n for n, v in [('ra', ra), ('dec', dec),
+                                      ('lat', lat), ('lon', lon)] if v is None]
+            if missing:
+                self.respond(400, f"Missing parameters: {', '.join(missing)}".encode())
+                return
+
+            try:
+                # Mutual exclusion: stop camera star follower if it is running.
+                if self.server.star_follower.get_status()['active']:
+                    self.server.star_follower.stop()
+
+                st.start(
+                    ra_hours=float(ra),
+                    dec_deg=float(dec),
+                    lat=float(lat),
+                    lon=float(lon),
+                    update_interval=float(interval),
+                )
+                self.respond(200, b"Sidereal tracker started")
+            except Exception as e:
+                self.respond(500, f"Error starting sidereal tracker: {e}".encode())
+
+        elif '/stop' in path:
+            st.stop()
+            self.respond(200, b"Sidereal tracker stopped")
+
+        elif '/status' in path:
+            status = st.get_status()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(status).encode())
+
+        else:
+            self.respond(404, b"Sidereal endpoint not found")
+
     def respond(self, code, message):
         self.send_response(code)
         self.send_header('Content-Type', 'text/plain')
@@ -263,6 +324,7 @@ class TelescopeServer:
         
         self.server.rotation_finder = CameraRotationFinder(self.server.motor_control)
         self.server.star_follower = StarFollower(self.server.motor_control)
+        self.server.sidereal_tracker = SiderealTracker(self.server.motor_control)
 
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.daemon = True
